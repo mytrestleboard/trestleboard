@@ -258,6 +258,7 @@ table.matrix thead th{font-size:12px;text-transform:uppercase;letter-spacing:.06
 .logo{display:block;object-fit:contain;border-radius:12px;background:var(--surface);border:1px solid var(--line);padding:4px;flex:none}
 .pubnav{display:flex;flex-wrap:wrap;gap:4px;margin:12px 0;border-bottom:1px solid var(--line);padding-bottom:8px}.pubnav button{background:none;border:0;border-radius:6px;padding:8px 12px;cursor:pointer;color:var(--fg);font:inherit;font-weight:500}.pubnav button:hover{background:var(--sunk)}.pubnav button.on{background:var(--accent-soft);color:var(--accent)}.pubnav .portal{margin-left:auto;background:var(--accent);color:var(--accent-fg)}.pubnav .portal:hover{background:var(--accent);opacity:.9}.pubnav .portal.on{background:var(--accent);color:var(--accent-fg)}
 .pubgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.pubgrid .gh{text-align:center;font-size:12px;color:var(--muted);padding:4px 0}.pubgrid .gc{min-height:56px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);padding:4px;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;cursor:pointer;font:inherit;text-align:left}.pubgrid .gc.blank{border:0;background:none;cursor:default}.pubgrid .gc.past{opacity:.5}.pubgrid .gc.today{border-color:var(--accent);border-width:2px}.pubgrid .gc.sel{background:var(--accent-soft)}.pubgrid .gn{font-weight:600;font-size:13px}.pubgrid .gb{align-self:flex-end;background:var(--accent);color:var(--accent-fg);border-radius:999px;font-size:11px;padding:1px 7px}@media(max-width:560px){.pubgrid .gc{min-height:44px}}
+.pubpost{padding:10px 0;border-bottom:1px solid var(--line)}
 .pubday,.pubev{border:1px solid var(--line);border-radius:10px;margin:6px 0;background:var(--surface);color:var(--fg)}.pubday>summary,.pubev>summary{cursor:pointer;padding:10px 12px;list-style:none;color:var(--fg)}.pubday-in{padding:0 8px 8px}.pubev{margin:4px 0;background:var(--sunk)}.pubev-in{padding:2px 12px 10px;color:var(--fg)}
 .logo.lg{width:76px;height:76px}.logo.ph{display:grid;place-items:center;border-style:dashed;color:var(--muted);font-size:12px;padding:0}
 .logo-hd{display:grid;gap:4px;justify-items:center;flex:none}
@@ -878,10 +879,10 @@ const pubList=()=>{const q=PUB.q.trim().toLowerCase(),all=pubEnts();
   return `<p class="hint count" style="margin:0 0 8px">${hit.length} ${PUB.tab==="lodges"?"lodges":"bodies"}${hit.length>shown.length?" · showing the first "+shown.length+", type to narrow":""}</p><div class="cards">${shown.map(e=>`<button type="button" class="card" data-act="pub-open" data-t="${PUB.tab==="lodges"?"l":"e"}" data-id="${esc(e.n||e.id)}"><span class="t">${esc(PUB.tab==="lodges"?lname(e):e.name)}</span><span class="s">${esc([PUB.tab==="lodges"?"District "+e.d:e.t,e.city].filter(Boolean).join(" · "))}</span></button>`).join("")||`<p class="hint">No matches.</p>`}</div>`};
 
 function pubSrc(e){const k=evScope(e);return k==="gl"||k.startsWith("l:")?byNum(e.n):k.startsWith("e:")?entById(k.slice(2)):null}
-function pubEvent(e){const src=pubSrc(e),k=evScope(e),isL=k==="gl"||k.startsWith("l:"),who=evWhere(e);
+function pubEvent(e,withDate){const src=pubSrc(e),k=evScope(e),isL=k==="gl"||k.startsWith("l:"),who=evWhere(e);
   const addr=src?[src.addr,src.city,src.addr||src.city?"TX":"",src.zip].filter(Boolean).join(", "):"";
   const id=src?(isL?src.n:src.id):"";
-  return `<details class="pubev"><summary><b>${esc(fmtTime(e.time)||"All day")}</b> · ${esc(who)} · ${esc(e.title)}</summary><div class="pubev-in">
+  return `<details class="pubev"><summary>${withDate?`<span class="isub">${esc(prettyDate(e.date))}</span> · `:""}<b>${esc(fmtTime(e.time)||"All day")}</b> · ${esc(who)} · ${esc(e.title)}</summary><div class="pubev-in">
     ${e.type&&e.type!==e.title?`<div class="hint" style="margin:0">${esc(e.type)}</div>`:""}${e.notes?`<p style="margin:4px 0">${esc(e.notes)}</p>`:""}
     ${src&&!src.gl?`<p style="margin:4px 0"><button class="linkbtn" type="button" data-act="pub-open" data-t="${isL?"l":"e"}" data-id="${esc(id)}" data-from="cal"><b>${esc(who)}</b>, full page and map</button></p>`:""}
     ${addr?`<p style="margin:4px 0">${esc(addr)} · <a href="#" data-ext="${esc(mapLink(addr))}">Open in Google Maps</a></p>`:""}
@@ -929,11 +930,20 @@ function joinView(){
   <form id="joinform" style="display:flex;gap:8px;flex-wrap:wrap"><input type="text" id="join-q" name="q" placeholder="ZIP code or city" aria-label="ZIP code or city" value="${esc(PUB.joinQ)}" style="max-width:260px" autocomplete="postal-code"><button class="btn" type="submit">Show the closest lodges</button></form>
   <p class="hint" style="margin:0">We only use this to measure distance. It stays in your browser and is not saved or sent anywhere.</p>
   ${r===null?"":r==="none"?`<p class="hint">We could not find that ZIP code or city. Try a five-digit Texas ZIP code, or the name of a nearby city.</p>`:`<div class="cards">${pubNearCards(r)}</div><p style="margin:0"><button class="linkbtn" type="button" data-act="pub-tab" data-id="lodges">Browse all lodges</button></p><p class="hint" style="margin:0">Distances are straight-line and approximate. Which lodge you petition may also depend on where you live, so any of these can point you the right way.</p>`}</div>`}
+function pubSections(e,lod){
+  const out=[];
+  if(!e.pubCalOff){const key=lod?null:"e:"+e.id;
+    const evs=pubRange(TODAY,addDays(TODAY,90)).filter(x=>lod?(!x.k&&x.n===e.n):x.k===key).slice(0,8);
+    out.push(`<div class="section"><h3 class="sub">Upcoming events</h3>${evs.length?evs.map(x=>pubEvent(x,true)).join(""):`<p class="hint">No upcoming public events listed yet.</p>`}</div>`)}
+  if(!e.pubBoardOff){
+    const ps=S.posts.filter(p=>!p.sample&&!p.priv&&!p.evId&&(lod?(p.board.t==="lodge"&&p.board.id===e.n):postReachesEnt(p,e))).sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,5);
+    out.push(`<div class="section"><h3 class="sub">Trestle Board</h3>${ps.length?ps.map(p=>`<div class="pubpost"><div class="isub">${esc(new Date(p.at).toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"}))}</div><div style="white-space:pre-wrap">${esc(p.text||"")}</div></div>`).join(""):`<p class="hint">Nothing posted yet.</p>`}</div>`)}
+  return out.join("")}
 function pubDetail(){const lod=PUB.selT==="l",e=lod?byNum(+PUB.sel):entById(PUB.sel);if(!e)return "";
   const web=e.web?(/^https?:/i.test(e.web)?e.web:"https://"+e.web):"";
   return `<div class="panel pad"><button class="linkbtn" type="button" data-act="pub-back">← Back to the list</button><h2 style="margin:10px 0 2px">${esc(lod?lname(e):e.name)}</h2><p class="hint" style="margin:0 0 12px">${esc(lod?"District "+e.d+(e.county?" · "+e.county+" County":""):e.t)}</p>
   <dl class="kv">${e.meet?`<dt>Meets</dt><dd>${esc(e.meet)}</dd>`:""}${e.addr?`<dt>Address</dt><dd>${esc([e.addr,e.city,"TX",e.zip].filter(Boolean).join(", "))}</dd>`:e.city?`<dt>City</dt><dd>${esc(e.city)}</dd>`:""}${e.phone?`<dt>Phone</dt><dd><a href="tel:${esc(String(e.phone).replace(/[^0-9+]/g,""))}">${esc(e.phone)}</a></dd>`:""}${e.email?`<dt>Email</dt><dd><a href="mailto:${esc(e.email)}">${esc(e.email)}</a></dd>`:""}${web?`<dt>Website</dt><dd><a href="#" data-ext="${esc(web)}">${esc(e.web)}</a></dd>`:""}</dl>
-  ${mapBlock(e)}<p class="hint">Members: sign in to see this lodge's calendar, Trestle Board and officers. <button class="linkbtn" type="button" data-act="pub-login">Member portal</button></p></div>`}
+  ${mapBlock(e)}${pubSections(e,lod)}<p class="hint">Members: sign in to see this lodge's calendar, Trestle Board and officers. <button class="linkbtn" type="button" data-act="pub-login">Member portal</button></p></div>`}
 const PUBNAV=[["home","Home"],["cal","Calendar"],["lodges","Lodges"],["bodies","Appendant Bodies"]];
 function pubNav(act){return `<nav class="pubnav" aria-label="Main menu">${PUBNAV.map(([k,l])=>`<button type="button" class="${act===k?"on":""}" data-act="pub-tab" data-id="${k}" ${act===k?'aria-current="page"':""}>${l}</button>`).join("")}<button type="button" class="portal ${act==="portal"?"on":""}" data-act="pub-login">Member Portal</button></nav>`}
 function homeView(){const r=PUB.joinRes;
@@ -1512,6 +1522,11 @@ function editLodgeForm(l){
     ${l.gl?"":`<label>District<select id="f-dist" ${moveOk?"":"disabled"}>${districts().filter(d=>d!=="Grand Lodge").map(d=>`<option ${d===l.d?"selected":""}>${esc(d)}</option>`).join("")}</select>
       ${moveOk?"":`<span class="hint">Only Grand Lodge level roles can move a lodge to another district.</span>`}</label>`}
     ${!l.gl&&can("mergeLodges")?`<label>Lodge status (Grand Lodge officers only)<select id="f-status">${LSTATUS.map(x=>`<option ${x===lstat(l)?"selected":""}>${x}</option>`).join("")}</select><span class="hint">Changes are logged. Lodges that are not Active show a red status tag everywhere.</span></label>`:""}
+    ${l.gl?"":`<fieldset style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:6px"><legend>What shows on the public site</legend><span class="hint" style="margin:0">Anyone can see these without signing in. Everything is on by default. Turn off what you do not want public.</span>
+      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="f-pub" ${l.pubOff?"":"checked"}> Show this lodge on the public site</label>
+      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="f-pubcal" ${l.pubCalOff?"":"checked"}> Show our calendar</label>
+      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="f-pubboard" ${l.pubBoardOff?"":"checked"}> Show our Trestle Board posts</label>
+      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="f-pubmap" ${l.mapOff?"":"checked"}> Show the map</label></fieldset>`}
     <div class="actions"><button class="btn" type="submit">Save changes</button><button class="btn ghost" type="button" data-act="cancel">Cancel</button></div>
   </form>${officerManager(l)}${l.gl?"":posManager("l:"+l.n)}${websiteBlock(l.gl?"gl":"l:"+l.n,lname(l))}${subgroupManager(l.gl?"gl":"l:"+l.n)}${auditBlock(l.gl?"gl":"l:"+l.n)}`;
 }
@@ -2603,13 +2618,14 @@ document.addEventListener("submit",e=>{
   if(f.id==="editform"){
     const l=byNum(S.sel); if(!canEdit(l)) return;
     const next={name:v("f-name")||l.name,meet:v("f-meet"),addr:v("f-addr"),city:v("f-city")};
-    if(!l.gl){next.phone=v("f-phone");next.email=v("f-email");next.mail=v("f-mail");next.web=v("f-web")}
+    if(!l.gl){next.phone=v("f-phone");next.email=v("f-email");next.mail=v("f-mail");next.web=v("f-web");const ck=id=>!!(document.getElementById(id)||{}).checked;next.pubOff=!ck("f-pub");next.pubCalOff=!ck("f-pubcal");next.pubBoardOff=!ck("f-pubboard");next.mapOff=!ck("f-pubmap")}
     if(can("editAnyLodge")) next.d=v("f-dist");
     if(!l.gl&&can("mergeLodges")&&document.getElementById("f-status")) next.status=v("f-status");
+    ["pubOff","pubCalOff","pubBoardOff","mapOff"].forEach(k=>{if(k in next&&next[k]===!!l[k])delete next[k]});
     const changed=Object.keys(next).filter(k=>next[k]!==l[k]);
     S.edits[l.n]=Object.assign(S.edits[l.n]||{},next);
-    if(changed.length){const LB={name:"name",meet:"meeting",addr:"address",city:"city",d:"district",phone:"phone",email:"email",mail:"mailing address",web:"website",status:"status"},sh=v=>{v=String(v==null?"":v);return v?'"'+v.slice(0,60)+(v.length>60?"...":"")+'"':"(blank)"};audit(l.gl?"gl":"l:"+l.n,"changed "+changed.map(k=>`${LB[k]||k} from ${sh(l[k])} to ${sh(next[k])}`).join("; "))}
-    if(changed.length) logIt(`edited ${lname(l)} (${changed.map(k=>({name:"name",meet:"meeting",addr:"address",city:"city",d:"district",phone:"phone",email:"email",mail:"mailing address",web:"website",status:"status"}[k])).join(", ")})`);
+    if(changed.length){const LB={name:"name",meet:"meeting",addr:"address",city:"city",d:"district",phone:"phone",email:"email",mail:"mailing address",web:"website",status:"status",pubOff:"public listing",pubCalOff:"public calendar",pubBoardOff:"public Trestle Board",mapOff:"map"},sh=v=>{v=String(v==null?"":v);return v?'"'+v.slice(0,60)+(v.length>60?"...":"")+'"':"(blank)"};audit(l.gl?"gl":"l:"+l.n,"changed "+changed.map(k=>`${LB[k]||k} from ${sh(l[k])} to ${sh(next[k])}`).join("; "))}
+    if(changed.length) logIt(`edited ${lname(l)} (${changed.map(k=>({name:"name",meet:"meeting",addr:"address",city:"city",d:"district",phone:"phone",email:"email",mail:"mailing address",web:"website",status:"status",pubOff:"public listing",pubCalOff:"public calendar",pubBoardOff:"public Trestle Board",mapOff:"map"}[k])).join(", ")})`);
     if(next.meet&&!parseMeets(next.meet).length) toast("Saved. The meeting time isn't in a format the calendar can read.");
     else toast(changed.length?"Saved":"No changes");
     UI.editing=false; render(); return;
