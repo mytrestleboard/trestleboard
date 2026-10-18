@@ -858,8 +858,26 @@ function gcal(e){
 function prettyDate(s){const[y,m,d]=s.split("-").map(Number);const dt=new Date(y,m-1,d);return`${DOWS[dt.getDay()]}, ${MONTHS[m-1].slice(0,3)} ${d}`}
 
 /* ---------- shell ---------- */
+/* ---------- Public front page (visitors who are not signed in) ---------- */
+const PUB={tab:"lodges",q:"",sel:null};
+const pubEnts=()=>PUB.tab==="lodges"?L.filter(l=>!l.gl&&!l.pubOff):[...BODIES,...SRX,...YRX].filter(b=>!b.pubOff);
+const pubList=()=>{const q=PUB.q.trim().toLowerCase(),all=pubEnts();
+  const hit=q?all.filter(e=>[e.name,e.n,e.t,e.city,e.d,e.county].join(" ").toLowerCase().includes(q)):all;
+  const shown=hit.slice(0,80);
+  return `<p class="hint count" style="margin:0 0 8px">${hit.length} ${PUB.tab==="lodges"?"lodges":"bodies"}${hit.length>shown.length?" · showing the first "+shown.length+", type to narrow":""}</p><div class="cards">${shown.map(e=>`<button type="button" class="card" data-act="pub-open" data-id="${esc(e.n||e.id)}"><span class="t">${esc(PUB.tab==="lodges"?lname(e):e.name)}</span><span class="s">${esc([PUB.tab==="lodges"?"District "+e.d:e.t,e.city].filter(Boolean).join(" · "))}</span></button>`).join("")||`<p class="hint">No matches.</p>`}</div>`};
+function pubDetail(){const lod=PUB.tab==="lodges",e=lod?byNum(+PUB.sel):entById(PUB.sel);if(!e)return "";
+  const web=e.web?(/^https?:/i.test(e.web)?e.web:"https://"+e.web):"";
+  return `<div class="panel pad"><button class="linkbtn" type="button" data-act="pub-back">← Back to the list</button><h2 style="margin:10px 0 2px">${esc(lod?lname(e):e.name)}</h2><p class="hint" style="margin:0 0 12px">${esc(lod?"District "+e.d+(e.county?" · "+e.county+" County":""):e.t)}</p>
+  <dl class="kv">${e.meet?`<dt>Meets</dt><dd>${esc(e.meet)}</dd>`:""}${e.addr?`<dt>Address</dt><dd>${esc([e.addr,e.city,"TX",e.zip].filter(Boolean).join(", "))}</dd>`:e.city?`<dt>City</dt><dd>${esc(e.city)}</dd>`:""}${e.phone?`<dt>Phone</dt><dd><a href="tel:${esc(String(e.phone).replace(/[^0-9+]/g,""))}">${esc(e.phone)}</a></dd>`:""}${e.email?`<dt>Email</dt><dd><a href="mailto:${esc(e.email)}">${esc(e.email)}</a></dd>`:""}${web?`<dt>Website</dt><dd><a href="#" data-ext="${esc(web)}">${esc(e.web)}</a></dd>`:""}</dl>
+  ${mapBlock(e)}<p class="hint">Members: sign in to see this lodge's calendar, Trestle Board and officers. <button class="linkbtn" type="button" data-act="pub-login">Login</button></p></div>`}
+function publicView(){
+  return `<div class="hero"><div class="hero-img"></div><div class="hero-in"><svg class="tlogo" id="hero-logo" viewBox="0 0 34 34" aria-hidden="true"></svg><b>The Trestle Board</b><small>One Texas. One Trestle Board.</small></div></div>
+  <div style="display:flex;justify-content:flex-end;margin:10px 0"><button class="btn" type="button" data-act="pub-login">Member login</button></div>
+  ${PUB.sel?pubDetail():`<div class="panel pad" style="display:grid;gap:12px"><h2 style="margin:0">Find a Texas lodge</h2><p class="hint" style="margin:0">Meeting times, addresses and contact details for Texas lodges and appendant bodies.</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ${PUB.tab==="lodges"?"":"ghost"} small" type="button" data-act="pub-tab" data-id="lodges">Lodges</button><button class="btn ${PUB.tab==="bodies"?"":"ghost"} small" type="button" data-act="pub-tab" data-id="bodies">Appendant bodies</button></div>
+  <input type="search" id="pub-q" placeholder="Search by name, number, city or district" aria-label="Search" value="${esc(PUB.q)}"><div id="pub-list">${pubList()}</div></div>`}`}
 function loginView(){
-  return `<div class="hero"><div class="hero-img"></div><div class="hero-in"><svg class="tlogo" id="hero-logo" viewBox="0 0 34 34" aria-hidden="true"></svg><b>The Trestle Board</b><small>One Texas. One Trestle Board.</small></div></div><div class="panel login"><h2>The Trestle Board</h2><p class="sub" style="margin-bottom:2px"><b>One Texas. One Trestle Board.</b></p><p class="sub">Sign in to your lodges</p>
+  return `<div class="hero"><div class="hero-img"></div><div class="hero-in"><svg class="tlogo" id="hero-logo" viewBox="0 0 34 34" aria-hidden="true"></svg><b>The Trestle Board</b><small>One Texas. One Trestle Board.</small></div></div><div class="panel login"><h2>The Trestle Board</h2><p class="sub" style="margin-bottom:2px"><b>One Texas. One Trestle Board.</b></p><p class="sub">Sign in to your lodges</p><p style="margin:0 0 8px"><button class="linkbtn" type="button" data-act="pub-home">← Back to the public site</button></p>
     ${CLOUD?`<form id="cloudform" style="display:grid;gap:10px;text-align:left"><label>Email<input type="email" id="cl-email" autocomplete="username"></label><label>Password<input type="password" id="cl-pw" autocomplete="current-password"></label><label>Your name <span class="hint" style="margin:0">(only needed to create an account)</span><input type="text" id="cl-name" autocomplete="name"></label>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit" id="login-btn">Sign in</button><button class="btn ghost" type="button" data-act="cloud-signup">Create account</button></div><p class="hint" id="cl-msg" role="status" style="margin:0"></p></form>`
     :`<div class="fake" aria-hidden="true"><span>Username</span><div>Username or email</div></div>
@@ -998,7 +1016,7 @@ function render(){
   settleFirstClaims();applyBodyInfo();L=lodges(); renderSwitcher(); renderAcct();
   const v=document.getElementById("view");
   document.body.classList.toggle("out",!signedIn());
-  if(!signedIn()){document.getElementById("tabs").innerHTML="";v.innerHTML=loginView();tlHeader();save();return}
+  if(!signedIn()){document.getElementById("tabs").innerHTML="";v.innerHTML=UI.login?loginView():publicView();tlHeader();save();return}
   tabs();
   v.innerHTML=({feed:feedView,dir:dirView,bodies:bodiesView,cal:calView,members:membersView,res:resView,admin:adminView,account:accountView,profile:profileView,messages:messagesView,card:cardView,drills:drillsView,monitor:monitorView,laws:lawsView,bylaws:bylawsView,mentor:mentorView})[S.tab]();
   if(S.tab==="messages") renderAcct();
@@ -2316,6 +2334,11 @@ document.addEventListener("click",e=>{
     case "body-pick":{const b=bodyById(t.dataset.bid);if(b.t==="York Rite")(S.cityOpen||(S.cityOpen={}))[cityOf(b)]=true;if(b.lvl||b.t==="York Rite"){const o=S.srOpen||(S.srOpen={});entChain(b).slice(1).forEach(i=>o[i]=true)}S.bodyT=b.t;S.bodyK="";S.bodyQ="";S.bodySel=b.id;S.bodyOpen=true;render();scrollTo(0,0);break}
     case "body-kind":S.bodyK=t.dataset.v;render();break;
     case "body-follow":{const a=(S.bodyFollows||(S.bodyFollows={}))[S.user]||(S.bodyFollows[S.user]=[]);const i=a.indexOf(t.dataset.bid),b=bodyById(t.dataset.bid);if(i>=0){a.splice(i,1);toast(`Unfollowed ${bodyTitle(b)}`)}else{a.push(t.dataset.bid);toast(`Following ${bodyTitle(b)}`)}render();break}
+    case "pub-login":UI.login=true;render();scrollTo(0,0);break;
+    case "pub-home":UI.login=false;render();scrollTo(0,0);break;
+    case "pub-open":PUB.sel=PUB.tab==="lodges"?+t.dataset.id:t.dataset.id;render();scrollTo(0,0);break;
+    case "pub-back":PUB.sel=null;render();break;
+    case "pub-tab":PUB.tab=t.dataset.id;PUB.q="";PUB.sel=null;render();break;
     case "name-claim":nameClaim(t.dataset.n,t.dataset.o);break;
     case "dir-find":S.dirFind=true;S.dirOpen=false;S.distPage=null;S.q="";S.dist="";render();break;
     case "dist-open":S.distPage=t.dataset.d;S.dirOpen=false;render();scrollTo(0,0);break;
@@ -2724,5 +2747,6 @@ async function cloudSignUp(){const em=(document.getElementById("cl-email").value
 function cloudSignOut(){SBS=null;sbSave();CL.on=false;CL.snap={};CL.last="1970-01-01T00:00:00+00:00";clearInterval(CL.poll)}
 if(CLOUD){document.body.classList.add("cloud");USERS.splice(0,USERS.length,...USERS.filter(u=>u.id==="public"));S.user="public"}
 {const q=new URLSearchParams(location.search),ef=q.get("embed"),es=q.get("scope");if(ef&&es&&(ef==="posts"||ef==="cal")){renderEmbed(ef,es)}else{render();tlSplash();if(CLOUD&&SBS)cloudStart().catch(e=>{console.warn("cloud start failed",e.message);if(e.status===401){SBS=null;sbSave()}})}}
+document.addEventListener("input",e=>{if(e.target.id==="pub-q"){PUB.q=e.target.value;document.getElementById("pub-list").innerHTML=pubList();return}});
 document.addEventListener("input",e=>{const t=e.target;if(t.id==="mon-q"){S.monQ=t.value;const r=document.getElementById("mon-res");if(r)r.innerHTML=monResults();return}if(t.classList&&t.classList.contains("poll-opt")&&DRAFT.poll)DRAFT.poll[+t.dataset.i]=t.value});
 </script>
