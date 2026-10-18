@@ -405,7 +405,7 @@ body.out .login .btn{width:100%;margin-top:6px}
   <nav class="tabs" role="tablist" id="tabs"></nav>
   <section id="view"></section>
 </main>
-<div class="tl-foot"><i></i><span><b>One Trestle Board for all of Freemasonry.</b> · Pilot v0.3 · build Oct 18 6:19 PM</span></div>
+<div class="tl-foot"><i></i><span><b>One Trestle Board for all of Freemasonry.</b> · Pilot v0.3 · build Oct 18 6:47 PM</span></div>
 <div id="tl-splash" hidden><div class="in"><svg class="tlogo" id="spl-logo" viewBox="0 0 34 34" aria-hidden="true"></svg><b>My Trestle Board</b><small>One Trestle Board for all of Freemasonry.</small></div></div>
 <div class="toast" id="toast" hidden></div>
 
@@ -2158,6 +2158,35 @@ function canSetDegree(id){if(!signedIn())return false;if(can("manageRoles"))retu
   if(me().profile===id)return false;return p.lodges.some(x=>x.n&&!x.pending&&canEdit(byNum(x.n)))}
 const canEditProfile=id=>signedIn()&&(me().profile===id||can("manageRoles"));
 const editTarget=()=>canEditProfile(S.prof)?S.profiles[S.prof]:null;
+/* ---------- member files: uploads that show on a member's own Trestle Board ---------- */
+const FILE_BUCKET="member-files",FILE_MAX=25*1024*1024;
+const pFiles=p=>Array.isArray(p.files)?p.files:[];
+const fmtSize=n=>n>=1048576?(n/1048576).toFixed(1)+" MB":n>=1024?Math.round(n/1024)+" KB":n+" B";
+const fileIcon=f=>/^image\//.test(f.type||"")?"🖼️":/pdf/.test(f.type||"")?"📕":/word|officedocument\.word|msword/.test(f.type||"")?"📘":/sheet|excel/.test(f.type||"")?"📗":/presentation|powerpoint/.test(f.type||"")?"📙":/video/.test(f.type||"")?"🎬":/audio/.test(f.type||"")?"🎵":"📄";
+function filesBlock(id,p,own){
+  const fl=pFiles(p);
+  if(!signedIn())return `<p class="hint">Sign in to see ${esc(p.name.split(" ")[0])}'s files.</p>`;
+  const list=fl.length?`<div class="cards">${fl.map(f=>`<div class="card" style="gap:8px"><button type="button" class="linkbtn" data-act="file-open" data-path="${esc(f.path)}" style="display:flex;gap:10px;align-items:center;text-align:left;min-width:0;font:inherit"><span style="font-size:22px;flex:none">${fileIcon(f)}</span><span style="min-width:0"><span class="t" style="display:block;overflow:hidden;text-overflow:ellipsis">${esc(f.name)}</span><span class="isub">${f.note?esc(f.note)+" · ":""}${fmtSize(f.size||0)} · ${esc((f.at||"").slice(0,10))}</span></span></button>${own?`<div class="actions" style="margin:0"><button class="btn ghost small" type="button" data-act="file-del" data-fid="${esc(f.id)}">Remove</button></div>`:""}</div>`).join("")}</div>`
+    :`<p class="hint">${own?"Nothing uploaded yet.":`${esc(p.name.split(" ")[0])} has not shared any files yet.`}</p>`;
+  const up=own?(CLOUD&&SBS?`<div class="actions" style="margin-top:10px;align-items:center;flex-wrap:wrap"><label class="btn ghost small" style="cursor:pointer">Upload files or photos<input type="file" id="member-file" multiple hidden></label><input type="text" id="member-file-note" placeholder="Optional caption for the next upload" style="flex:1 1 200px;min-width:160px"><span class="hint" style="flex-basis:100%;margin:4px 0 0">PDFs, photos, Word and Excel files, up to 25 MB each. Every signed-in Mason who visits your Trestle Board can open them.${UI.upBusy?" <b>Uploading…</b>":""}</span></div>`:`<p class="hint">Sign in on the live site to upload files.</p>`):"";
+  return list+up}
+async function sbStorage(path,opt){opt=opt||{};if(SBS&&SBS.exp<Date.now()/1000+60)await sbRefresh();if(!SBS)throw new Error("Not signed in");
+  const h=Object.assign({apikey:SB.key,Authorization:"Bearer "+SBS.access},opt.headers||{});
+  const r=await fetch(SB.url+"/storage/v1"+path,{method:opt.method||"GET",headers:h,body:opt.body});
+  const t=await r.text();let j=null;try{j=t?JSON.parse(t):null}catch(e){}
+  if(!r.ok)throw new Error((j&&(j.message||j.error||j.msg))||r.statusText||"Storage request failed");return j}
+async function uploadMemberFiles(files,note){const p=myProfile();if(!p||!SBS)return;UI.upBusy=true;render();let ok=0;
+  for(const f of files){try{if(f.size>FILE_MAX){toast(`${f.name} is over 25 MB`);continue}
+    const safe=f.name.replace(/[^\w.\-]+/g,"_").slice(-80),path=SBS.uid+"/"+Date.now().toString(36)+"-"+safe;
+    await sbStorage("/object/"+FILE_BUCKET+"/"+path,{method:"POST",headers:{"Content-Type":f.type||"application/octet-stream","x-upsert":"true"},body:f});
+    (p.files||(p.files=[])).unshift({id:"f"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),name:f.name,path,size:f.size,type:f.type||"",note:note||"",at:new Date().toISOString()});ok++;
+  }catch(e){toast(`Could not upload ${f.name}: ${e.message}`)}}
+  UI.upBusy=false;if(ok){logIt(`added ${ok} ${ok===1?"file":"files"} to their Trestle Board`);toast(ok===1?"File uploaded.":`${ok} files uploaded.`)}render()}
+async function openMemberFile(path){const w=window.open("about:blank","_blank");try{const j=await sbStorage("/object/sign/"+FILE_BUCKET+"/"+path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({expiresIn:3600})});
+    const u=SB.url+"/storage/v1"+j.signedURL;if(w)w.location=u;else location.href=u}catch(e){if(w)w.close();toast("Could not open that file: "+e.message)}}
+async function deleteMemberFile(fid){const p=myProfile();if(!p)return;const f=pFiles(p).find(x=>x.id===fid);if(!f)return;
+  try{await sbStorage("/object/"+FILE_BUCKET,{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({prefixes:[f.path]})})}catch(e){console.warn("storage delete",e.message)}
+  p.files=pFiles(p).filter(x=>x.id!==fid);logIt("removed a file from their Trestle Board");render();toast("File removed.")}
 function profileDetail(id){
   const p=S.profiles[id]; if(!p) return `<div class="empty">Pick a member.</div>`;
   const own=me().profile===id, canEd=canEditProfile(id), ed=canEd&&UI.editProfile;
@@ -2173,6 +2202,7 @@ function profileDetail(id){
   ${canSeeLogin(id)?`<div class="section"><h3 class="sub">Last sign-in</h3><p style="margin:0">${esc(lastSeen(id))}</p><p class="hint" style="margin:4px 0 0">${own?"Your lodge officers and district officers can see when you last signed in.":"Visible to this lodge's officers, district officers and Grand Lodge officers."}</p></div>`:""}
   <div class="section"><h3 class="sub">Lodges and titles</h3>${lodgesAndTitles(p,ed)}
     ${own?`<div class="actions" style="margin:12px 0 0"><button class="btn ghost small" type="button" disabled>Pay dues online</button><span class="chip">Planned</span></div>`:""}</div>
+  <div class="section"><h3 class="sub">Files and photos</h3>${filesBlock(id,p,own)}</div>
   <div class="section"><h3 class="sub">Mentoring</h3>${signedIn()?mentorBlock(id):`<p class="hint">Sign in to see mentoring.</p>`}</div>
   ${ed||(p.past||[]).some(c=>!tiedLodge(p,c))?`<div class="section"><h3 class="sub">${ed?"Past titles":"Other past titles"}</h3>${ed?resumeList(p.past,"past",ed):resumeList(p.past,"past",false,c=>!tiedLodge(p,c))}${ed?addRow("past"):""}</div>`:""}
   <div class="section"><h3 class="sub">Esoteric certificates</h3>${resumeList(p.certs,"certs",ed)}${ed?addRow("certs"):""}</div>
@@ -2596,6 +2626,8 @@ document.addEventListener("click",e=>{
     case "signin":{S.user="mark";S.tab="feed";UI={editing:false,editProfile:false,adding:null,confirmDel:null};const ml=myLodges().filter(n=>n!==0);if(ml.length)S.sel=ml[0];if(me().profile)S.prof=me().profile;render();scrollTo(0,0);toast("Signed in as Mark (demo)");break}
     case "logo-remove":setLogo(t.dataset.lk,t.dataset.lid,"");break;
     case "photo-remove":{const p=editTarget();if(!p)break;stashProfileForm(p);ct(p,"photo").v="";logIt("removed their profile picture");render();break}
+    case "file-open":openMemberFile(t.dataset.path);break;
+    case "file-del":deleteMemberFile(t.dataset.fid);break;
     case "ent-join":{const pr=myProfile(),b=entById(t.dataset.bid);if(!pr||!b)break;if(!entMem(pr,b.id)){const now=new Date().toISOString();(pr.ents||(pr.ents=[])).push({id:b.id,since:"",pending:true,requested:now});settleFirstClaims();const x=entMem(pr,b.id);if(!x.pending){const a=(S.bodyFollows||(S.bodyFollows={}))[S.user]||(S.bodyFollows[S.user]=[]);if(!a.includes(b.id))a.push(b.id);logIt(`joined ${bodyTitle(b)}`);audit("e:"+b.id,"joined My Trestle Board as a member");toast(`You are now listed as a member of ${bodyTitle(b)}`)}else{logIt(`asked to join ${bodyTitle(b)}`);audit("e:"+b.id,"asked to join as a member");toast(`Request sent. An officer of ${bodyTitle(b)} will approve it.`)}}render();break}
     case "ent-leave":{const pr=myProfile(),b=entById(t.dataset.bid);if(!pr||!b)break;pr.ents=(pr.ents||[]).filter(x=>x.id!==b.id);logIt(`left ${bodyTitle(b)}`);audit("e:"+b.id,"left the member list");toast(`Removed from ${bodyTitle(b)}`);render();break}
     case "aff-request":{const pr=myProfile(),lo=byNum(+t.dataset.n);if(!pr||!lo)break;if(!pr.lodges.some(x=>x.n===lo.n)){pr.lodges.push({n:lo.n,since:"",pending:true,requested:new Date().toISOString()});logIt(`requested to affiliate with ${lname(lo)}`);audit("l:"+lo.n,"asked to affiliate with the lodge");toast(`Request sent to ${lname(lo)}`)}render();break}
@@ -2921,6 +2953,7 @@ document.addEventListener("change",e=>{
   if(t.classList&&t.classList.contains("logo-file")){const f=t.files&&t.files[0],lk=t.dataset.lk,lid=t.dataset.lid;if(!f)return;const img=new Image(),url=URL.createObjectURL(f),png=/png|svg|gif|webp/.test(f.type);
     img.onload=()=>{const m=Math.max(img.width,img.height,1),k=Math.min(1,320/m),c=document.createElement("canvas");c.width=Math.max(1,Math.round(img.width*k));c.height=Math.max(1,Math.round(img.height*k));c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);setLogo(lk,lid,png?c.toDataURL("image/png"):c.toDataURL("image/jpeg",.85))};
     img.onerror=()=>{URL.revokeObjectURL(url);toast("That file isn't an image I can read")};img.src=url;return}
+  if(t.id==="member-file"){const fs=[...(t.files||[])];const n=document.getElementById("member-file-note");const note=n?n.value.trim():"";if(fs.length)uploadMemberFiles(fs,note);return}
   if(t.id==="photo-file"){const f=t.files&&t.files[0];if(!f)return;const img=new Image(),url=URL.createObjectURL(f);
     img.onload=()=>{const c=document.createElement("canvas"),s=Math.min(img.width,img.height),N=160;c.width=c.height=N;c.getContext("2d").drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,N,N);URL.revokeObjectURL(url);const p=editTarget();if(!p)return;stashProfileForm(p);ct(p,"photo").v=c.toDataURL("image/jpeg",.82);logIt("updated their profile picture");render();toast("Photo updated.")};
     img.onerror=()=>{URL.revokeObjectURL(url);toast("That file isn't an image I can read")};img.src=url;return}
