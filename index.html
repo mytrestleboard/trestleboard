@@ -131,6 +131,7 @@ body.out .viewas,body.out .demo-note{display:none}
 .login .fake span{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:4px}
 .login .fake div{border:1px solid var(--line);background:var(--sunk);border-radius:6px;padding:9px 10px;color:var(--muted);font-size:14px;user-select:none;cursor:default}
 .login .btn{width:100%;padding:10px 14px;margin-top:6px}
+.login .clf{display:grid;gap:4px;font-size:13px;color:var(--muted)}.login .clf input{width:100%;box-sizing:border-box;font-size:16px;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:var(--sunk);color:var(--fg)}
 .login .hint{margin-top:14px}
 .demo-note{background:var(--gold-soft);font-size:13px}
 .demo-note .wrap{padding-block:8px;display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap;align-items:center}
@@ -969,10 +970,11 @@ function publicView(){
   const act=PUB.sel?(PUB.selT==="l"?"lodges":"bodies"):PUB.tab;
   return `<div class="hero"><div class="hero-img"></div><div class="hero-in"><svg class="tlogo" id="hero-logo" viewBox="0 0 34 34" aria-hidden="true"></svg><b>My Trestle Board</b><small>One Trestle Board for all of Freemasonry.</small></div></div>
   ${PUB.sel?pubDetail():PUB.tab==="join"?joinView():PUB.tab==="home"?homeView():PUB.tab==="cal"?`<div class="panel pad" style="display:grid;gap:12px"><h2 style="margin:0">Masonic events</h2>${pubCal()}</div>`:`<div class="panel pad" style="display:grid;gap:12px"><h2 style="margin:0">${PUB.tab==="bodies"?"Appendant bodies":"Lodge Locator"}</h2>${PUB.tab==="bodies"?"":locatorNear()}<p class="hint" style="margin:0">${PUB.tab==="bodies"?"Meeting times, addresses and contact details.":"Or browse every lodge. Search by name, number, city or district."}</p><input type="search" id="pub-q" placeholder="Search by name, number, city or district" aria-label="Search" value="${esc(PUB.q)}"><div id="pub-list">${pubList()}</div></div>`}`}
+let LM="in";
 function loginView(){
-  return `<div class="hero"><div class="hero-img"></div><div class="hero-in"><svg class="tlogo" id="hero-logo" viewBox="0 0 34 34" aria-hidden="true"></svg><b>My Trestle Board</b><small>One Trestle Board for all of Freemasonry.</small></div></div><div class="panel login"><h2>My Trestle Board</h2><p class="sub" style="margin-bottom:2px"><b>One Trestle Board for all of Freemasonry.</b></p><p class="sub">Sign in to your lodges</p>
-    ${CLOUD?`<form id="cloudform" style="display:grid;gap:10px;text-align:left"><label>Email<input type="email" id="cl-email" autocomplete="username"></label><label>Password<input type="password" id="cl-pw" autocomplete="current-password"></label>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit" id="login-btn">Sign in</button><button class="btn ghost" type="button" data-act="cloud-signup">Create account</button></div><p class="hint" id="cl-msg" role="status" style="margin:0"></p><p class="hint" style="margin:0">Texas Masons: after you create your account you will confirm your Grand Lodge of Texas card.</p></form>`
+  return `<div class="hero"><div class="hero-img"></div><div class="hero-in"><svg class="tlogo" id="hero-logo" viewBox="0 0 34 34" aria-hidden="true"></svg><b>My Trestle Board</b><small>One Trestle Board for all of Freemasonry.</small></div></div><div class="panel login"><h2>My Trestle Board</h2><p class="sub" style="margin-bottom:2px"><b>One Trestle Board for all of Freemasonry.</b></p><p class="sub">${CLOUD?"For Texas Masons and lodge officers":"Sign in to your lodges"}</p>
+    ${CLOUD?`<form id="cloudform" style="display:grid;gap:12px;text-align:left"><h3 style="margin:0;font-size:18px;text-align:center">${LM==="up"?"Create your account":"Sign in"}</h3>${LM==="up"?`<p class="hint" style="margin:0;text-align:center">Step 1 of 2: your email and a password. Step 2: scan your Grand Lodge of Texas card.</p>`:""}<label class="clf">Email<input type="email" id="cl-email" autocomplete="${LM==="up"?"email":"username"}" inputmode="email"></label><label class="clf">Password<input type="password" id="cl-pw" autocomplete="${LM==="up"?"new-password":"current-password"}"></label>
+      <button class="btn" type="submit" id="login-btn">${LM==="up"?"Create account":"Sign in"}</button><p class="hint" id="cl-msg" role="status" style="margin:0;text-align:center"></p><p style="margin:0;text-align:center">${LM==="up"?`Already have an account? <button class="linkbtn" type="button" data-act="lm-in">Sign in</button>`:`New here? <button class="linkbtn" type="button" data-act="lm-up">Create an account</button>`}</p></form>`
     :`<div class="fake" aria-hidden="true"><span>Username</span><div>Username or email</div></div>
     <div class="fake" aria-hidden="true"><span>Password</span><div>Password</div></div>
     <button class="btn" type="button" data-act="signin" id="login-btn">Login</button>
@@ -2464,6 +2466,8 @@ document.addEventListener("click",e=>{
     case "go-profile-edit":openProfile();UI.editProfile=true;render();break;
     case "profile-back":S.tab=S.prevTab&&S.prevTab!=="profile"?S.prevTab:"feed";UI={editing:false,editProfile:false,adding:null,confirmDel:null};render();break;
     case "cloud-signin":cloudSignIn();break;
+    case "lm-up":LM="up";render();break;
+    case "lm-in":LM="in";render();break;
     case "cloud-signup":cloudSignUp();break;
     case "scan-card":scanCard();break;
     case "scan-stop":scanStop();break;
@@ -2623,7 +2627,7 @@ document.addEventListener("click",e=>{
 });
 document.addEventListener("submit",e=>{
   e.preventDefault(); const f=e.target; const v=id=>(document.getElementById(id)?.value||"").trim();
-  if(f.id==="cloudform"){cloudSignIn();return}
+  if(f.id==="cloudform"){if(LM==="up")cloudSignUp();else cloudSignIn();return}
   if(f.id==="verifyform"){cloudVerify();return}
   if(f.id==="formform"){formSave();return}
   if(f.id==="editform"){
@@ -2855,7 +2859,7 @@ async function cloudSignIn(){const em=(document.getElementById("cl-email").value
   clMsg("Signing in...");try{const j=await sbFetch("/auth/v1/token?grant_type=password",{method:"POST",auth:false,body:{email:em,password:pw}});SBS=sbSess(j);sbSave();await cloudStart()}catch(e){clMsg(e.message==="Invalid login credentials"?"That email and password don't match. If you just created the account, confirm your email first.":e.message)}}
 async function cloudSignUp(){const em=(document.getElementById("cl-email").value||"").trim(),pw=document.getElementById("cl-pw").value,nm="";if(!em||!pw){clMsg("Enter your email and a password to create an account.");return}
   if(pw.length<8){clMsg("Use a password of at least 8 characters.");return}
-  clMsg("Creating account...");try{const j=await sbFetch("/auth/v1/signup",{method:"POST",auth:false,body:{email:em,password:pw,data:{}}});if(j&&j.access_token){SBS=sbSess(j,nm);sbSave();await cloudStart()}else clMsg("Account created. Check your email for a confirmation link, then come back here and sign in.")}catch(e){clMsg(e.message)}}
+  clMsg("Creating account...");try{const j=await sbFetch("/auth/v1/signup",{method:"POST",auth:false,body:{email:em,password:pw,data:{}}});if(j&&j.access_token){SBS=sbSess(j,nm);sbSave();await cloudStart()}else clMsg("Almost done. We sent a confirmation link to your email. Tap it, then come back here, sign in, and scan your card.")}catch(e){clMsg(e.message)}}
 const needsVerify=()=>CLOUD&&CL.on&&!CL.ver&&CL.role!=="super";
 const degFromCard=d=>/master/i.test(d)?"MM":/fellow/i.test(d)?"FC":/entered/i.test(d)?"EA":"MM";
 function applyVerification(){const v=CL.ver,p=myProfile();if(!v||!p)return;
