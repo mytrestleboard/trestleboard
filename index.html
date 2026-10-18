@@ -2929,6 +2929,7 @@ async function cloudPull(first){let changed=false,more=true;
 async function cloudStart(){
   USERS.splice(0,USERS.length,...USERS.filter(u=>u.id==="public"));
   await cloudPull(true);
+  try{const op=(await sbFetch("/rest/v1/docs?select=data&coll=eq.offpre&id=eq._"))[0];if(op&&op.data&&typeof op.data==="object")Object.assign(OFFPRE,op.data)}catch(e){console.warn("officer list not loaded",e.message)}
   let a=(await sbFetch("/rest/v1/accounts?select=*&user_id=eq."+SBS.uid))[0];
   if(!a){const pid="u"+SBS.uid.replace(/-/g,"").slice(0,12);
     if(!S.profiles[pid])S.profiles[pid]={name:SBS.name||SBS.email.split("@")[0],degree:"EA",lodges:[],current:[],past:[],certs:[],bodies:[],contact:{email:C(SBS.email,"lodge"),phone:C("","private"),city:C("","members")}};
