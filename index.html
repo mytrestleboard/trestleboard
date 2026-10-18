@@ -403,7 +403,7 @@ body.out .login .btn{width:100%;margin-top:6px}
   <nav class="tabs" role="tablist" id="tabs"></nav>
   <section id="view"></section>
 </main>
-<div class="tl-foot"><i></i><span><b>One Trestle Board for all of Freemasonry.</b> · Pilot v0.3</span></div>
+<div class="tl-foot"><i></i><span><b>One Trestle Board for all of Freemasonry.</b> · Pilot v0.3 · build Oct 18 4:46 PM</span></div>
 <div id="tl-splash" hidden><div class="in"><svg class="tlogo" id="spl-logo" viewBox="0 0 34 34" aria-hidden="true"></svg><b>My Trestle Board</b><small>One Trestle Board for all of Freemasonry.</small></div></div>
 <div class="toast" id="toast" hidden></div>
 
@@ -877,7 +877,7 @@ function monthEvents(y,mo){
   for(const e of S.events) if(e.date.startsWith(pre)) out.push(e);
   return out.filter(visibleEv).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
 }
-function visibleEv(e){if(e.k)return e.vis==="public"||evMemberOf(e.k);const l=byNum(e.n);return !!l&&(e.vis==="public"||canSeePrivate(l))}
+function visibleEv(e){if(e.k)return e.vis==="public"||evMemberOf(e.k)||(signedIn()&&e.k.startsWith("e:")&&entOpen(e.k.slice(2),"cal"));const l=byNum(e.n);return !!l&&(e.vis==="public"||canSeePrivate(l))}
 function inScope(e){if(S.calScope==="all"||!signedIn())return true;return e.k?true:following(byNum(e.n))}
 function upcomingFor(n,count){
   const res=[];let y=today.getFullYear(),m=today.getMonth();
@@ -1267,6 +1267,10 @@ function bodyEditForm(b){
     <label>Email<input type="email" id="bf-email" value="${esc(b.email||"")}" placeholder="secretary@example.org"></label>
     <label>Mailing address (optional, shows on the page only if filled in)<input type="text" id="bf-mail" value="${esc(b.mail||"")}" placeholder="PO Box, city, state, zip"></label>
     <label>Website (optional, shows on the page only if filled in)<input type="text" id="bf-web" value="${esc(b.web||"")}" placeholder="https://"></label>
+    <fieldset style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:6px"><legend style="padding:0 6px">Who can see</legend>
+      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="bf-showboard" ${b.hideBoard?"":"checked"}> Every signed-in Mason can see our Trestle Board</label>
+      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="bf-showcal" ${b.hideCal?"":"checked"}> Every signed-in Mason can see our calendar</label>
+      <span class="hint">Untick to limit it to members and followers. Events marked "Everyone" always show.</span></fieldset>
     <div class="actions"><button class="btn" type="submit">Save changes</button><button class="btn ghost" type="button" data-act="body-edit-cancel">Cancel</button></div>
   </form>${bodyOfficerManager(b)}${posManager("e:"+b.id)}${websiteBlock("e:"+b.id,bodyTitle(b))}${subgroupManager("e:"+b.id)}${auditBlock("e:"+b.id)}`}
 const bManual=(b,o)=>((S.manualB||{})[b.id]||{})[o]||"";
@@ -1375,7 +1379,7 @@ function districtDetail(d){
   ${real?`<div class="section"><h3 class="sub">Trestle Board</h3>${!signedIn()?`<p class="locked">🔒 Sign in to see this Trestle Board.</p>`:`${posts.length?`<div class="stack" style="padding:0;gap:10px">${posts.map(postCard).join("")}</div>`:`<p class="hint">Nothing posted to the District ${esc(d)} board yet. Posts here reach every lodge in the district.</p>`}<div class="actions" style="margin-top:10px"><button class="btn ghost small" type="button" data-act="district-board" data-d="${esc(d)}">Open District ${esc(d)} Trestle Board</button></div>${mayPost?"":`<p class="hint" style="margin:8px 0 0">District officers can post here.</p>`}`}</div>`:""}
   ${real?`<div class="section"><h3 class="sub">Calendar</h3>${calendar({keys:["d:"+d],scope:"d:"+d})}</div>`:""}<div class="section"><h3 class="sub">Lodges</h3><div class="cards">${ls.map(l=>`<button type="button" class="card" data-lodge="${l.n}"><span class="t">${esc(lname(l))}</span><span class="isub">${esc(l.city||"—")}${l.meet?" · "+esc(l.meet):""}</span></button>`).join("")}</div></div>`}
 function item(l){
-  const tags=[isMember(l)?`<span class="chip mem">${l.gl?"Officer":"Member"}</span>`:following(l)?`<span class="chip">Following</span>`:"",l.gl?`<span class="chip acc">Grand Lodge</span>`:l.pilot?`<span class="chip pilot">Pilot</span>`:"",lstatChip(l)].join(" ");
+  const tags=[isMember(l)?`<span class="chip mem">${l.gl?"Officer":"Member"}</span>`:following(l)?`<span class="chip">Following</span>`:"",l.gl?`<span class="chip acc">Grand Lodge</span>`:(l.pilot&&!CLOUD)?`<span class="chip pilot">Pilot</span>`:"",lstatChip(l)].join(" ");
   return `<button type="button" class="item" data-lodge="${l.n}" aria-current="${S.sel===l.n}">${logoThumb(l.logo,l.gl?"GL":l.n)}
     <span style="min-width:0"><span class="iname">${esc(l.name)}</span><span class="isub">${esc(l.city||"—")} · ${l.gl?"Statewide body":l.d==="Statewide"?"Statewide":"Dist. "+esc(l.d)}</span></span><span>${tags}</span></button>`;
 }
@@ -1500,10 +1504,12 @@ function posManager(key){
     <div class="actions" style="margin:0"><button class="btn small" type="submit">Save positions</button><button class="btn ghost small" type="button" data-act="pos-reset" data-key="${esc(key)}">Reset to common</button></div></form></details></div>`}
 const entBoardType=b=>b.lvl==="orient"?"orient":b.lvl==="valley"?"valley":b.lvl==="body"?"abody":"ent";
 const entBoardKey=b=>b.lvl==="orient"?"or":(b.lvl==="valley"?"v:":b.lvl==="body"?"a:":"e:")+b.id;
+// Body Trestle Board and calendar are open to every signed-in Mason unless the body turns that off (Edit body info).
+const entOpen=(id,w)=>{const e=entById(id);return !(e&&e[w==="cal"?"hideCal":"hideBoard"])};
 function entBoardSection(b,fol){
   const reach=b.lvl==="master"?"Posts to this board reach every "+(b.k==="Commandery"?"Commandery":BKIND[b.k])+" in Texas.":b.t==="York Rite"?"Posts here come from this body and its Texas master board.":b.lvl==="orient"?"Posts to the Texas Scottish Rite reach every Valley and body.":b.lvl==="valley"?"Posts here also reach the Valley's four bodies.":b.lvl==="body"?"Posts here come from this body and its Valley.":"Posts here reach the members and followers of this body.";
   if(!signedIn())return `<div class="section"><h3 class="sub">Trestle Board</h3><p class="locked">🔒 Sign in to see this Trestle Board.</p></div>`;
-  const ps=S.posts.filter(p=>postReachesEnt(p,b)&&canSeePost(p)).sort((x,y)=>y.at.localeCompare(x.at)).slice(0,3);
+  const ps=S.posts.filter(p=>postReachesEnt(p,b)&&(canSeePost(p)||entOpen(b.id,"board"))).sort((x,y)=>y.at.localeCompare(x.at)).slice(0,3);
   const canPost=boardsICanPost().some(x=>bKey(x)===entBoardKey(b));
   return `<div class="section"><h3 class="sub">Trestle Board</h3>${ps.length?`<div class="stack" style="padding:0;gap:10px">${ps.map(postCard).join("")}</div>`:`<p class="hint">Nothing posted here yet. ${reach}</p>`}<div class="actions" style="margin-top:10px"><button class="btn ghost small" type="button" data-act="body-board" data-bid="${b.id}">Open ${esc(bodyTitle(b))} Trestle Board</button></div>${canPost?`<p class="hint" style="margin:8px 0 0">You can post here. Open the Trestle Board to write a post.</p>`:`<p class="hint" style="margin:8px 0 0">${isEntMember(b.id)?"":"Members of this body can post here. "}${fol?"":"Follow this body to see its posts on your own Trestle Board."}</p>`}</div>`}
 function entRosterBlock(b){
@@ -1540,7 +1546,7 @@ function lodgeDetail(){
   </dl>
   ${mapBlock(l)}
   <div class="section"><h3 class="sub">Calendar</h3>${lodgeCal(l)}</div>
-  ${bylawsBlock(l)}${l.gl?"":`<div class="section"><h3 class="sub">Officers</h3>${canSeePrivate(l)?officerList(l):`<p class="locked">🔒 Only members of ${esc(lname(l))} and the district officers over it can see the officers.</p>`}</div>`}
+  ${bylawsBlock(l)}${l.gl?"":`<div class="section"><h3 class="sub">Officers</h3>${signedIn()?officerList(l):`<p class="locked">🔒 Sign in to see the officers.</p>`}</div>`}
   ${l.gl?"":pendSection("l:"+l.n,lname(l))}
   ${subgroupList(l.gl?"gl":"l:"+l.n)}
   <div class="section"><h3 class="sub">${l.gl?"Grand Lodge officers":"Members on My Trestle Board"}</h3>${l.gl?"":`<p class="hint" style="margin:0 0 10px">These are only the members who have joined My Trestle Board. They are not the lodge's full membership.</p>`}${l.gl||canSeePrivate(l)
@@ -1888,7 +1894,7 @@ function formsBlock(){
   ${formEditor()}
   <div style="display:grid;gap:12px"><b>Grand Lodge of Texas forms</b>${gl.length?grp(gl):`<p class="hint" style="margin:0">No statewide forms have been added yet.</p>`}</div>
   ${lscopes.map(s=>`<div style="display:grid;gap:12px"><b>${esc(fScopeName(s))}</b>${grp(lod.filter(f=>f.scope===s))}</div>`).join("")}
-  <p class="hint" style="margin:0">Demo note: an uploaded file is stored in this browser only. Sharing it with other people needs the real login and file storage.</p></div>`}
+  ${CLOUD?`<p class="hint" style="margin:0">Links are shared with everyone who can see this board. Uploaded files are kept on this device for now; shared file storage is coming.</p>`:`<p class="hint" style="margin:0">Demo note: an uploaded file is stored in this browser only. Sharing it with other people needs the real login and file storage.</p>`}</div>`}
 async function formSave(){
   const E=UI.formEd;if(!E)return;const val=id=>(document.getElementById(id)?.value||"").trim(),rep=E.mode==="replace";
   const cur=E.id?(S.forms||{})[E.id]:null;
@@ -2764,8 +2770,9 @@ document.addEventListener("submit",e=>{
     if(!next.name){toast("A name is required");return}
     const LB={name:"name",meet:"meeting",addr:"address",city:"city",phone:"phone",email:"email",mail:"mailing address",web:"website"},sh=x=>{x=String(x==null?"":x);return x?'"'+x.slice(0,60)+(x.length>60?"...":"")+'"':"(blank)"};
     const changed=Object.keys(next).filter(k=>next[k]!==(b[k]||""));
-    if(changed.length){audit("e:"+b.id,"changed "+changed.map(k=>`${LB[k]} from ${sh(b[k])} to ${sh(next[k])}`).join("; "));(S.bodyInfo||(S.bodyInfo={}))[b.id]=Object.assign(S.bodyInfo[b.id]||{},next);logIt(`edited ${bodyTitle(b)}`)}
-    UI.bodyEditing=null;toast(changed.length?"Saved":"No changes");render();return}
+    const ck=i=>{const x=document.getElementById(i);return x?!x.checked:false},vis={hideBoard:ck("bf-showboard"),hideCal:ck("bf-showcal")},vch=Object.keys(vis).filter(k=>vis[k]!==!!b[k]);
+    if(changed.length||vch.length){const VL={hideBoard:"Trestle Board",hideCal:"calendar"};audit("e:"+b.id,[changed.length?"changed "+changed.map(k=>`${LB[k]} from ${sh(b[k])} to ${sh(next[k])}`).join("; "):"",...vch.map(k=>`${vis[k]?"limited":"opened"} the ${VL[k]} ${vis[k]?"to members and followers":"to every signed-in Mason"}`)].filter(Boolean).join("; "));(S.bodyInfo||(S.bodyInfo={}))[b.id]=Object.assign(S.bodyInfo[b.id]||{},next,vis);logIt(`edited ${bodyTitle(b)}`)}
+    UI.bodyEditing=null;toast(changed.length||vch.length?"Saved":"No changes");render();return}
   if(f.dataset.newgrp){const k=f.dataset.newgrp;if(!canManageScope(k)){toast("You can't build a Trestle Board there");return}
     const fd=new FormData(f),nm=(fd.get("name")||"").trim(),ds=(fd.get("desc")||"").trim();if(!nm){toast("Name the Trestle Board first");return}
     if(gKids(k).some(x=>x.name.toLowerCase()===nm.toLowerCase())){toast("There is already one with that name here");return}
