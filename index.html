@@ -830,6 +830,18 @@ const evScope=e=>e.k||(e.n===0?"gl":"l:"+e.n);
 const evKeyOfScope=k=>k.startsWith("e:")&&entById(k.slice(2))?entBoardKey(entById(k.slice(2))):k;
 const calKeyToScope=k=>k==="or"?"e:sr-texas":/^[va]:/.test(k)?"e:"+k.slice(2):k;
 const evWhere=e=>{const k=evScope(e);return k==="gl"?"Grand Lodge":scopeName(k)};
+const evAlso=e=>Array.isArray(e.also)?e.also:[];
+function evSpreadsTo(e,sk){if(!e.spread||sk==="gl"||sk[0]!=="l")return false;const l=byNum(+sk.slice(2));if(!l)return false;const o=evScope(e);if(o==="gl")return true;if(o.startsWith("d:"))return String(l.d)===o.slice(2);return false}
+const evOn=(e,sk)=>evScope(e)===sk||evAlso(e).includes(sk)||evSpreadsTo(e,sk);
+const evCals=e=>[evScope(e),...evAlso(e)];
+const normTi=t=>String(t||"").toLowerCase().replace(/[^a-z0-9 ]+/g," ").replace(/\b(the|a|an|of|at|and|no|lodge)\b/g," ").replace(/\s+/g," ").trim();
+function simTitle(a,b){a=normTi(a);b=normTi(b);if(!a||!b)return false;if(a===b||a.includes(b)||b.includes(a))return true;const A=new Set(a.split(" ").filter(w=>w.length>2)),B=new Set(b.split(" ").filter(w=>w.length>2));if(!A.size||!B.size)return false;let n=0;A.forEach(w=>{if(B.has(w))n++});return n/Math.max(A.size,B.size)>=0.5}
+function findDupe(ev){return S.events.find(x=>x.id!==ev.id&&!x.auto&&x.date===ev.date&&simTitle(x.title,ev.title)&&visibleEv(x))}
+function evLink(e,sk){if(!e||evOn(e,sk))return false;e.also=evAlso(e).concat([sk]);audit(sk,`added "${e.title}" (${e.date}) from ${evWhere(e)} to the calendar`);logIt(`put "${e.title}" on ${scopeName(sk)}'s calendar`);return true}
+function evUnlink(e,sk){if(!e||!evAlso(e).includes(sk))return false;e.also=evAlso(e).filter(x=>x!==sk);audit(sk,`removed "${e.title}" (${e.date}) from the calendar`);return true}
+function evMerge(from,into){if(!from||!into||from.id===into.id)return false;const add=evCals(from).filter(k=>!evOn(into,k));into.also=evAlso(into).concat(add);if(from.spread&&!into.spread&&evScope(into)===evScope(from))into.spread=true;
+  S.posts.forEach(p=>{if(p.evId===from.id)p.evId=into.id});if(S.rsvps&&S.rsvps[from.id]){S.rsvps[into.id]=Object.assign({},S.rsvps[from.id],S.rsvps[into.id]||{});delete S.rsvps[from.id]}
+  S.events=S.events.filter(x=>x.id!==from.id);audit(evScope(from),`merged "${from.title}" (${from.date}) into ${evWhere(into)}'s event`);logIt(`merged "${from.title}" into ${evWhere(into)}'s event`);return true}
 function evMemberOf(k){
   if(!signedIn())return false;if(canManageScope(k)||can("editAnyLodge"))return true;
   if(k==="gl")return true;
@@ -839,6 +851,7 @@ function evMemberOf(k){
   if(k.startsWith("g:")){const g=gById(k.slice(2));return !!g&&grpMine(g)}
   return false}
 function evCanEdit(e){return e.k?canManageScope(e.k):canEdit(byNum(e.n))}
+const canManageScopeKey=k=>k==="gl"||k.startsWith("l:")?canEdit(byNum(k==="gl"?0:+k.slice(2))):canManageScope(k);
 function manageableScopes(){
   if(!signedIn())return [];const out=[];
   L.filter(canEdit).forEach(l=>out.push({k:keyOf(l.n),g:"Lodges",l:lname(l)}));
@@ -865,7 +878,7 @@ function inScope(e){if(S.calScope==="all"||!signedIn())return true;return e.k?tr
 function upcomingFor(n,count){
   const res=[];let y=today.getFullYear(),m=today.getMonth();
   for(let i=0;i<4&&res.length<count;i++){
-    for(const e of monthEvents(y,m)) if(e.n===n&&e.date>=TODAY) res.push(e);
+    for(const e of monthEvents(y,m)) if(evOn(e,keyOf(n))&&e.date>=TODAY) res.push(e);
     m++; if(m>11){m=0;y++}
   }
   return res.slice(0,count);
@@ -902,7 +915,7 @@ function pubEvent(e,withDate){const src=pubSrc(e),k=evScope(e),isL=k==="gl"||k.s
   const addr=src?[src.addr,src.city,src.addr||src.city?"TX":"",src.zip].filter(Boolean).join(", "):"";
   const id=src?(isL?src.n:src.id):"";
   return `<details class="pubev"><summary>${withDate?`<span class="isub">${esc(prettyDate(e.date))}</span> · `:""}<b>${esc(fmtTime(e.time)||"All day")}</b> · ${esc(who)} · ${esc(e.title)}</summary><div class="pubev-in">
-    ${e.type&&e.type!==e.title?`<div class="hint" style="margin:0">${esc(e.type)}</div>`:""}${e.notes?`<p style="margin:4px 0">${esc(e.notes)}</p>`:""}
+    ${e.type&&e.type!==e.title?`<div class="hint" style="margin:0">${esc(e.type)}</div>`:""}${evAlso(e).length||e.spread?`<div class="hint" style="margin:0">${evAlsoLine(e).replace(/^<div class="meta">|<\/div>$/g,"")}</div>`:""}${e.notes?`<p style="margin:4px 0">${esc(e.notes)}</p>`:""}
     ${src&&!src.gl?`<p style="margin:4px 0"><button class="linkbtn" type="button" data-act="pub-open" data-t="${isL?"l":"e"}" data-id="${esc(id)}" data-from="cal"><b>${esc(who)}</b>, full page and map</button></p>`:""}
     ${addr?`<p style="margin:4px 0">${esc(addr)} · <a href="#" data-ext="${esc(mapLink(addr))}">Open in Google Maps</a></p>`:""}
     <p style="margin:4px 0"><a href="#" data-ext="${esc(gcal(e))}">Add to Google Calendar</a></p></div></details>`}
@@ -951,7 +964,7 @@ function joinView(){
 function pubSections(e,lod){
   const out=[];
   if(!e.pubCalOff){const key=lod?null:"e:"+e.id;
-    const evs=pubRange(TODAY,addDays(TODAY,90)).filter(x=>lod?(!x.k&&x.n===e.n):x.k===key).slice(0,8);
+    const evs=pubRange(TODAY,addDays(TODAY,90)).filter(x=>evOn(x,lod?keyOf(e.n):key)).slice(0,8);
     out.push(`<div class="section"><h3 class="sub">Upcoming events</h3>${evs.length?evs.map(x=>pubEvent(x,true)).join(""):`<p class="hint">No upcoming public events listed yet.</p>`}</div>`)}
   if(!e.pubBoardOff){
     const ps=S.posts.filter(p=>!p.sample&&!p.priv&&!p.evId&&(lod?(p.board.t==="lodge"&&p.board.id===e.n):postReachesEnt(p,e))).sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,5);
@@ -1407,7 +1420,7 @@ function renderEmbed(f,k){
   const on=webOn(k),esc2=esc;let body="";
   if(!on)body=`<p style="opacity:.7">Nothing to show here yet.</p>`;
   else if(f==="cal"){
-    const ev=S.events.filter(e=>e.web&&evScope(e)===k&&(e.vis||"public")==="public"&&e.date>=TODAY).sort((a,b)=>(a.date+(a.time||"")).localeCompare(b.date+(b.time||""))).slice(0,20);
+    const ev=S.events.filter(e=>e.web&&evOn(e,k)&&(e.vis||"public")==="public"&&e.date>=TODAY).sort((a,b)=>(a.date+(a.time||"")).localeCompare(b.date+(b.time||""))).slice(0,20);
     body=ev.length?ev.map(e=>`<div class="ei"><b>${esc2(e.title)}</b><div class="d">${esc2(new Date(e.date+"T12:00").toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"}))}${e.time?" at "+esc2(new Date("2000-01-01T"+e.time).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})):""}</div>${e.notes?`<div>${esc2(e.notes)}</div>`:""}</div>`).join(""):`<p style="opacity:.7">No upcoming events.</p>`}
   else{
     const ps=S.posts.filter(p=>p.web&&postScope(p.board)===k).sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,15);
@@ -1572,6 +1585,7 @@ function eventForm(sk){
     <div class="two"><label>Type<select id="ev-type">${TYPES.map(t=>`<option>${t}</option>`).join("")}</select></label>
       <label>Who can see it<select id="ev-vis"><option value="public">Everyone</option><option value="members">Members only</option></select></label></div>
     <label>Notes<textarea id="ev-notes" rows="2"></textarea></label>
+    ${ms.some(x=>x.k==="gl"||x.k.startsWith("d:"))||(sk&&(sk==="gl"||sk.startsWith("d:")))?`<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="ev-spread" checked> Put it on the calendar of every lodge under this board <span class="hint">(Grand Lodge and district boards only)</span></label>`:""}
     ${ms.some(x=>webOn(x.k))||(sk&&webOn(sk))?`<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="ev-web"> Also show on our website <span class="hint">(only if the board's website feed is on and the event is set to Everyone)</span></label>`:""}
     <div class="actions" style="margin:0"><button class="btn" type="submit">Add to calendar</button><button class="btn ghost" type="button" data-act="cancel-ev">Cancel</button></div>
   </form>`;
@@ -1583,15 +1597,24 @@ function agendaItem(e){
   <div style="min-width:0"><div class="ev-t">${esc(e.title)} ${e.vis==="members"?`<span class="chip acc">Members only</span>`:""} ${e.sample?`<span class="chip">Sample</span>`:""}</div>
   <div class="meta">${fmtTime(e.time)} · ${k==="gl"||k.startsWith("l:")?`<button type="button" class="linkbtn" data-lodge-open="${e.n}">${esc(evWhere(e))}</button>`:`<button type="button" class="linkbtn" data-act="scope-open" data-k="${esc(k)}">${esc(evWhere(e))}</button>`} · ${esc(e.type)}</div>
   ${e.notes?`<div class="meta">${esc(e.notes)}</div>`:""}
-  <div class="acts">${rsvpHtml(e)}<a class="btn ghost small" href="${gcal(e)}" target="_blank" rel="noopener">Add to Google Calendar</a>
+  ${evAlsoLine(e)}
+  <div class="acts">${rsvpHtml(e)}<a class="btn ghost small" href="${gcal(e)}" target="_blank" rel="noopener">Add to Google Calendar</a>${evAlsoActs(e)}
   ${del?(UI.confirmDel===e.id?`<button class="btn danger small" type="button" data-act="del-ev" data-id="${e.id}">Confirm delete</button><button class="btn ghost small" type="button" data-act="keep-ev">Keep</button>`:`<button class="btn ghost small" type="button" data-act="ask-del" data-id="${e.id}">Delete</button>`):""}</div></div></li>`;
 }
+function evAlsoLine(e){const x=evAlso(e);const sp=e.spread?(evScope(e).startsWith("d:")?"every lodge in the district":"every lodge in Texas"):"";if(!x.length&&!sp)return "";
+  return `<div class="meta">Also on the calendar of ${[...x.map(k=>{const n=scopeName(k);return n===k?bodyLabel(k):n}),sp].filter(Boolean).join(", ")}</div>`}
+function evAlsoActs(e){if(e.auto||!signedIn())return "";const ms=manageableScopes(),add=ms.filter(x=>!evOn(e,x.k)),rm=ms.filter(x=>evAlso(e).includes(x.k));let h="";
+  if(add.length&&add.length<=2)h+=add.map(x=>`<button class="btn ghost small" type="button" data-act="ev-also" data-id="${e.id}" data-sk="${esc(x.k)}">Add to ${esc(x.l)}</button>`).join("");
+  else if(add.length)h+=`<select class="ev-also-sel small" data-id="${e.id}" aria-label="Add to a calendar"><option value="">Add to our calendar…</option>${add.map(x=>`<option value="${esc(x.k)}">${esc(x.l)}</option>`).join("")}</select>`;
+  h+=rm.map(x=>`<button class="btn ghost small" type="button" data-act="ev-unalso" data-id="${e.id}" data-sk="${esc(x.k)}">Remove from ${esc(x.l)}</button>`).join("");
+  if(evCanEdit(e)){const o=S.events.find(x=>x.id!==e.id&&!x.auto&&x.date===e.date&&simTitle(x.title,e.title)&&visibleEv(x));if(o)h+=`<button class="btn ghost small" type="button" data-act="ev-merge" data-id="${e.id}" data-into="${o.id}" title="Keep one event and put ${esc(evWhere(e))} on it">Merge into ${esc(evWhere(o))}'s event</button>`}
+  return h}
 const PAL=["#2f6fb3","#b8791f","#2e8b57","#8a4fb0","#c0504d","#2a9d9d","#7a7a2a","#b05a8a"];
 const keyOf=n=>n===0?"gl":"l:"+n;
 function bodyLabel(k){if(k==="gl")return "Grand Lodge";
   if(k==="or")return "Texas Scottish Rite";
   if(/^[vae]:/.test(k)){const e=entById(k.slice(2));return e?bodyTitle(e):k}if(k.startsWith("g:")){const g=gById(k.slice(2));return g?g.name:k}if(k[0]==="d")return "District "+k.slice(2);const l=byNum(+k.slice(2));return l?lname(l):k}
-function evIn(e,k){const sk=calKeyToScope(k);if(e.k)return e.k===sk;return sk==="gl"?e.n===0:sk[0]==="l"?e.n===+sk.slice(2):false}
+function evIn(e,k){return evOn(e,calKeyToScope(k))}
 function calKeys(){return S.calBodies||(signedIn()?feedDefaultKeys():[])}
 function bodyBar(keys){
   const def=feedDefaultKeys(),opts=[...def];keys.forEach(k=>{if(!opts.includes(k))opts.push(k)});
@@ -2493,6 +2516,11 @@ document.addEventListener("click",e=>{
     case "cloud-signup":cloudSignUp();break;
     case "recheck-card":{const bx=document.getElementById("recheck-box");if(bx){bx.style.display=bx.style.display==="none"?"block":"none"}break}
     case "scan-card":scanCard();break;
+    case "ev-also":{const e=S.events.find(x=>x.id===t.dataset.id);if(e&&canManageScopeKey(t.dataset.sk)&&evLink(e,t.dataset.sk)){toast(`Added to ${scopeName(t.dataset.sk)}'s calendar`);render()}break}
+    case "ev-unalso":{const e=S.events.find(x=>x.id===t.dataset.id);if(e&&canManageScopeKey(t.dataset.sk)&&evUnlink(e,t.dataset.sk)){toast(`Removed from ${scopeName(t.dataset.sk)}'s calendar`);render()}break}
+    case "ev-merge":{const a=S.events.find(x=>x.id===t.dataset.id),b=S.events.find(x=>x.id===t.dataset.into);if(a&&b&&evCanEdit(a)&&evMerge(a,b)){toast("Merged into one event");render()}break}
+    case "ev-link-dupe":{const e=S.events.find(x=>x.id===t.dataset.id);if(e&&canManageScopeKey(t.dataset.sk)){evLink(e,t.dataset.sk);UI.adding=null;toast(`Added to ${scopeName(t.dataset.sk)}'s calendar`);render()}break}
+    case "ev-dupe-anyway":{const f=t.closest("form");if(f){f.dataset.dupeok="1";const b=document.getElementById("ev-dupe");if(b)b.remove();f.requestSubmit()}break}
     case "scan-stop":scanStop();break;
     case "signout":if(CLOUD)cloudSignOut();S.user="public";S.tab="feed";UI={editing:false,editProfile:false,adding:null,confirmDel:null};render();scrollTo(0,0);toast("Signed out");break;
     case "welcome-ok":{S.welcomed=S.welcomed||{};S.welcomed[S.user]=1;render();break}
@@ -2675,6 +2703,9 @@ document.addEventListener("submit",e=>{
     const ev=Object.assign({id:"e"+Date.now().toString(36)},isL?{n}:{n:null,k:sk},{title:v("ev-title"),type:v("ev-type"),date:v("ev-date"),time:v("ev-time"),vis:v("ev-vis"),notes:v("ev-notes")});
     {const wb=document.getElementById("ev-web");if(wb&&wb.checked&&webOn(sk)&&ev.vis==="public")ev.web=true}
     if(!ev.title||!ev.date){toast("Add a title and date");return}
+    {const sp=document.getElementById("ev-spread");if(sp&&sp.checked&&(sk==="gl"||sk.startsWith("d:")))ev.spread=true}
+    if(!f.dataset.dupeok){const d=findDupe(ev);if(d){let box=document.getElementById("ev-dupe");if(!box){box=document.createElement("div");box.id="ev-dupe";box.className="panel pad";box.style.cssText="border-color:var(--gold);margin:0 0 10px";f.querySelector(".actions").before(box)}
+      box.innerHTML=`<b>This looks like it is already on a calendar.</b><div class="hint" style="margin:4px 0 8px">"${esc(d.title)}" on ${esc(prettyDate(d.date))}, posted by ${esc(evWhere(d))}${evOn(d,sk)?", and it is already on this calendar":""}.</div><div class="actions" style="margin:0">${evOn(d,sk)?"":`<button class="btn small" type="button" data-act="ev-link-dupe" data-id="${d.id}" data-sk="${esc(sk)}">Add that event to our calendar instead</button>`}<button class="btn ghost small" type="button" data-act="ev-dupe-anyway">It's a different event, add mine</button></div>`;box.scrollIntoView({block:"nearest"});return}}
     S.events.push(ev);logIt(`added "${ev.title}" to ${evWhere(ev)}'s calendar`);audit(sk,`added the event "${ev.title}" (${ev.date})`);
     S.posts.push({id:"p"+Date.now().toString(36)+"e",by:S.user,board:scopeBoard(sk),text:`New event: ${ev.title}`,at:new Date().toISOString(),evId:ev.id});
     UI.adding=null; toast(`Added to ${evWhere(ev)}'s calendar and Trestle Board`); render(); return;
@@ -2779,6 +2810,7 @@ document.addEventListener("submit",e=>{
 });
 document.addEventListener("change",e=>{
   const t=e.target;
+  if(t.classList&&t.classList.contains("ev-also-sel")){const ev=S.events.find(x=>x.id===t.dataset.id),sk=t.value;if(ev&&sk&&canManageScopeKey(sk)&&evLink(ev,sk)){toast(`Added to ${scopeName(sk)}'s calendar`);render()}return}
   if(t.classList&&t.classList.contains("boff-sel")){const x=document.getElementById("boffm-"+t.dataset.i);if(x){x.style.display=t.value==="__manual"?"":"none";if(t.value==="__manual")x.focus()}return}
   if(t.classList&&t.classList.contains("off-sel")){const x=document.getElementById("offt-"+t.dataset.i);if(x){x.style.display=t.value==="__manual"?"":"none";if(t.value==="__manual")x.focus()}return}
   if(t.id==="viewas"){S.user=t.value;{const pr=S.profiles[(USERS.find(u=>u.id===t.value)||{}).profile];if(pr)pr.lastLogin=new Date().toISOString()}UI={editing:false,editProfile:false,adding:null,confirmDel:null};const u=me();const ml=myLodges().filter(n=>n!==0);if(ml.length)S.sel=ml[0];if(u.profile)S.prof=u.profile;render();toast(`Now viewing as ${u.label}`);return}
