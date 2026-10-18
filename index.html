@@ -877,7 +877,7 @@ function monthEvents(y,mo){
   for(const e of S.events) if(e.date.startsWith(pre)) out.push(e);
   return out.filter(visibleEv).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
 }
-function visibleEv(e){if(e.k)return e.vis==="public"||evMemberOf(e.k)||(signedIn()&&e.k.startsWith("e:")&&entOpen(e.k.slice(2),"cal"));const l=byNum(e.n);return !!l&&(e.vis==="public"||canSeePrivate(l))}
+function visibleEv(e){if(e.k)return e.vis==="public"||evMemberOf(e.k);const l=byNum(e.n);return !!l&&(e.vis==="public"||canSeePrivate(l))}
 function inScope(e){if(S.calScope==="all"||!signedIn())return true;return e.k?true:following(byNum(e.n))}
 function upcomingFor(n,count){
   const res=[];let y=today.getFullYear(),m=today.getMonth();
@@ -1267,10 +1267,6 @@ function bodyEditForm(b){
     <label>Email<input type="email" id="bf-email" value="${esc(b.email||"")}" placeholder="secretary@example.org"></label>
     <label>Mailing address (optional, shows on the page only if filled in)<input type="text" id="bf-mail" value="${esc(b.mail||"")}" placeholder="PO Box, city, state, zip"></label>
     <label>Website (optional, shows on the page only if filled in)<input type="text" id="bf-web" value="${esc(b.web||"")}" placeholder="https://"></label>
-    <fieldset style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:6px"><legend style="padding:0 6px">Who can see</legend>
-      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="bf-showboard" ${b.hideBoard?"":"checked"}> Every signed-in Mason can see our Trestle Board</label>
-      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="bf-showcal" ${b.hideCal?"":"checked"}> Every signed-in Mason can see our calendar</label>
-      <span class="hint">Untick to limit it to members and followers. Events marked "Everyone" always show.</span></fieldset>
     <div class="actions"><button class="btn" type="submit">Save changes</button><button class="btn ghost" type="button" data-act="body-edit-cancel">Cancel</button></div>
   </form>${bodyOfficerManager(b)}${posManager("e:"+b.id)}${websiteBlock("e:"+b.id,bodyTitle(b))}${subgroupManager("e:"+b.id)}${auditBlock("e:"+b.id)}`}
 const bManual=(b,o)=>((S.manualB||{})[b.id]||{})[o]||"";
@@ -1504,12 +1500,10 @@ function posManager(key){
     <div class="actions" style="margin:0"><button class="btn small" type="submit">Save positions</button><button class="btn ghost small" type="button" data-act="pos-reset" data-key="${esc(key)}">Reset to common</button></div></form></details></div>`}
 const entBoardType=b=>b.lvl==="orient"?"orient":b.lvl==="valley"?"valley":b.lvl==="body"?"abody":"ent";
 const entBoardKey=b=>b.lvl==="orient"?"or":(b.lvl==="valley"?"v:":b.lvl==="body"?"a:":"e:")+b.id;
-// Body Trestle Board and calendar are open to every signed-in Mason unless the body turns that off (Edit body info).
-const entOpen=(id,w)=>{const e=entById(id);return !(e&&e[w==="cal"?"hideCal":"hideBoard"])};
 function entBoardSection(b,fol){
   const reach=b.lvl==="master"?"Posts to this board reach every "+(b.k==="Commandery"?"Commandery":BKIND[b.k])+" in Texas.":b.t==="York Rite"?"Posts here come from this body and its Texas master board.":b.lvl==="orient"?"Posts to the Texas Scottish Rite reach every Valley and body.":b.lvl==="valley"?"Posts here also reach the Valley's four bodies.":b.lvl==="body"?"Posts here come from this body and its Valley.":"Posts here reach the members and followers of this body.";
   if(!signedIn())return `<div class="section"><h3 class="sub">Trestle Board</h3><p class="locked">🔒 Sign in to see this Trestle Board.</p></div>`;
-  const ps=S.posts.filter(p=>postReachesEnt(p,b)&&(canSeePost(p)||entOpen(b.id,"board"))).sort((x,y)=>y.at.localeCompare(x.at)).slice(0,3);
+  const ps=S.posts.filter(p=>postReachesEnt(p,b)&&canSeePost(p)).sort((x,y)=>y.at.localeCompare(x.at)).slice(0,3);
   const canPost=boardsICanPost().some(x=>bKey(x)===entBoardKey(b));
   return `<div class="section"><h3 class="sub">Trestle Board</h3>${ps.length?`<div class="stack" style="padding:0;gap:10px">${ps.map(postCard).join("")}</div>`:`<p class="hint">Nothing posted here yet. ${reach}</p>`}<div class="actions" style="margin-top:10px"><button class="btn ghost small" type="button" data-act="body-board" data-bid="${b.id}">Open ${esc(bodyTitle(b))} Trestle Board</button></div>${canPost?`<p class="hint" style="margin:8px 0 0">You can post here. Open the Trestle Board to write a post.</p>`:`<p class="hint" style="margin:8px 0 0">${isEntMember(b.id)?"":"Members of this body can post here. "}${fol?"":"Follow this body to see its posts on your own Trestle Board."}</p>`}</div>`}
 function entRosterBlock(b){
@@ -2401,14 +2395,14 @@ function feedView(){
 }
 
 /* ---------- resources ---------- */
-const RES0=[
+function buildRES0(){return [
   {sec:"Texas Monitor",note:"The Monitor of the Lodge and the tools to learn it. The digital Monitor is a reference aid and the drills are a memorization aid. Neither replaces your printed Monitor, so always check it.",items:[
     ["Digital Monitor","The Monitor of the Lodge, section by section, word for word. Edition on file: "+MON.edition.label+".","app:monitor","Open Monitor"],
     ["Full Monitor (PDF)","The complete scanned Texas Monitor (PDF), opens from Mark's Google Drive.","https://drive.google.com/file/d/1NyFtGuA-am8dcGu9MFOyglq5k9yOiflc/view"],
     ["Monitor memorization drills","Interactive drills for all three degrees, right here in My Trestle Board.","app:drills","Open drills"]]},
   {sec:"Law and rules",items:[
-    ["Laws of the Grand Lodge","The law book ("+(LAWS.edition||"Revised")+"), searchable by article number or word.",LAWS.arts.length?"app:laws":null,"Open laws"],
-    ["Grand Master's decisions and edicts","Rulings of the Grand Master, "+(LAWS.arts.reduce((n,a)=>n+(a.d||[]).length,0))+" in all through the 2025 revision, each linked to the article it interprets. Newer ones are not in the book yet.",LAWS.arts.length?"app:decisions":null,"Open decisions"],
+    ["Laws of the Grand Lodge","The law book ("+(LAWS.edition||"Revised")+"), searchable by article number or word.",(LAWS.arts.length||CLOUD)?"app:laws":null,"Open laws"],
+    ["Grand Master's decisions and edicts","Rulings of the Grand Master, "+(LAWS.arts.reduce((n,a)=>n+(a.d||[]).length,0))+" in all through the 2025 revision, each linked to the article it interprets. Newer ones are not in the book yet.",(LAWS.arts.length||CLOUD)?"app:decisions":null,"Open decisions"],
     ["Lodge bylaws","Bylaws for the lodges you belong to, uploaded by each lodge. Members only.","app:bylaws","Open bylaws"]]},
   {sec:"Forms and officer guides",min:"MM",items:[
     ["Officer handbooks","What each station does, from Tiler to Worshipful Master."],
@@ -2423,8 +2417,10 @@ const RES0=[
   {sec:"Charity and family",items:[
     ["Masonic charities","Grand Lodge relief programs and how to request help for a brother or widow."],
     ["Youth programs","DeMolay, Rainbow and Job's Daughters in Texas."]]}
-];
-const RES=RES0.filter(s=>s.sec!=="Texas Monitor"||MON.sections.length);
+]}
+let RES0=buildRES0();
+let RES=RES0.filter(s=>s.sec!=="Texas Monitor"||MON.sections.length);
+function rebuildRES(){RES0=buildRES0();RES=RES0.filter(s=>s.sec!=="Texas Monitor"||MON.sections.length)}
 const resOk=min=>!min||!signedIn()||(DRANK[degreeOf()]||0)>=DRANK[min];
 const resItems=g=>g.items.filter(it=>resOk(it[4]||g.min));
 function resView(){
@@ -2606,9 +2602,9 @@ document.addEventListener("click",e=>{
       fget(`form:${f.id}:${v}`).then(bl=>{if(!bl){toast("The file isn't in this browser. Ask whoever added it to upload it again.");return}const u=URL.createObjectURL(bl),a=document.createElement("a");a.href=u;a.target="_blank";a.rel="noopener";if(!/pdf|image/.test(bl.type))a.download=ver.file.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),120000)}).catch(()=>toast("Couldn't open the file"));break}
     case "bylaw-open":{const n=+t.dataset.n,l=byNum(n);if(!l||!canSeeBylaws(l))break;fget("bylaws:"+n).then(bl=>{if(!bl){toast("The file isn't in this browser. Ask the secretary to upload it again.");return}const u=URL.createObjectURL(bl),a=document.createElement("a");a.href=u;a.target="_blank";a.rel="noopener";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),120000)}).catch(()=>toast("Couldn't open the file"));break}
     case "bylaw-remove":{const n=+t.dataset.n,l=byNum(n);if(!l||!canEdit(l))break;fdel("bylaws:"+n).catch(()=>{});if(S.bylaws)delete S.bylaws[n];logIt(`removed the bylaws of ${lname(l)}`);audit("l:"+l.n,"removed the bylaws");toast("Bylaws removed");render();break}
-    case "open-laws":S.tab="laws";S.lawOpen=null;S.lawMode=t.dataset.m||"art";render();scrollTo(0,0);break
+    case "open-laws":if(CLOUD&&!REF.laws){cloudLaws().then(ok=>{if(ok){S.tab="laws";S.lawOpen=null;S.lawMode=t.dataset.m||"art";render();scrollTo(0,0)}});break}S.tab="laws";S.lawOpen=null;S.lawMode=t.dataset.m||"art";render();scrollTo(0,0);break
     case "law-mode":S.lawMode=t.dataset.m;S.lawOpen=null;render();break
-    case "law-open":S.tab="laws";S.lawOpen=t.dataset.n;render();scrollTo(0,0);break
+    case "law-open":if(CLOUD&&!REF.laws){const n=t.dataset.n;cloudLaws().then(ok=>{if(ok){S.tab="laws";S.lawOpen=n;render();scrollTo(0,0)}});break}S.tab="laws";S.lawOpen=t.dataset.n;render();scrollTo(0,0);break
     case "law-back":if(S.lawOpen){S.lawOpen=null}else{S.tab="res"}render();scrollTo(0,0);break
     case "open-monitor":S.tab="monitor";S.monSec=null;render();scrollTo(0,0);break
     case "mon-open":S.tab="monitor";S.monSec=t.dataset.id;render();scrollTo(0,0);break
@@ -2768,9 +2764,8 @@ document.addEventListener("submit",e=>{
     if(!next.name){toast("A name is required");return}
     const LB={name:"name",meet:"meeting",addr:"address",city:"city",phone:"phone",email:"email",mail:"mailing address",web:"website"},sh=x=>{x=String(x==null?"":x);return x?'"'+x.slice(0,60)+(x.length>60?"...":"")+'"':"(blank)"};
     const changed=Object.keys(next).filter(k=>next[k]!==(b[k]||""));
-    const ck=i=>{const x=document.getElementById(i);return x?!x.checked:false},vis={hideBoard:ck("bf-showboard"),hideCal:ck("bf-showcal")},vch=Object.keys(vis).filter(k=>vis[k]!==!!b[k]);
-    if(changed.length||vch.length){const VL={hideBoard:"Trestle Board",hideCal:"calendar"};audit("e:"+b.id,[changed.length?"changed "+changed.map(k=>`${LB[k]} from ${sh(b[k])} to ${sh(next[k])}`).join("; "):"",...vch.map(k=>`${vis[k]?"limited":"opened"} the ${VL[k]} ${vis[k]?"to members and followers":"to every signed-in Mason"}`)].filter(Boolean).join("; "));(S.bodyInfo||(S.bodyInfo={}))[b.id]=Object.assign(S.bodyInfo[b.id]||{},next,vis);logIt(`edited ${bodyTitle(b)}`)}
-    UI.bodyEditing=null;toast(changed.length||vch.length?"Saved":"No changes");render();return}
+    if(changed.length){audit("e:"+b.id,"changed "+changed.map(k=>`${LB[k]} from ${sh(b[k])} to ${sh(next[k])}`).join("; "));(S.bodyInfo||(S.bodyInfo={}))[b.id]=Object.assign(S.bodyInfo[b.id]||{},next);logIt(`edited ${bodyTitle(b)}`)}
+    UI.bodyEditing=null;toast(changed.length?"Saved":"No changes");render();return}
   if(f.dataset.newgrp){const k=f.dataset.newgrp;if(!canManageScope(k)){toast("You can't build a Trestle Board there");return}
     const fd=new FormData(f),nm=(fd.get("name")||"").trim(),ds=(fd.get("desc")||"").trim();if(!nm){toast("Name the Trestle Board first");return}
     if(gKids(k).some(x=>x.name.toLowerCase()===nm.toLowerCase())){toast("There is already one with that name here");return}
@@ -2933,6 +2928,17 @@ async function cloudPull(first){let changed=false,more=true;
       changed=true})}
   if(changed){save();const a=document.activeElement,typing=a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&!/^(radio|checkbox|button|file)$/.test(a.type||"");if(!typing&&!first)render()}
   return changed}
+const REF={mon:false,drills:false,laws:false,busy:{}};
+async function cloudRef(which){if(!CLOUD||!SBS||REF[which]||REF.busy[which])return false;REF.busy[which]=true;
+  try{const r=(await sbFetch("/rest/v1/docs?select=data&coll=eq.ref&id=eq."+which))[0];const d=r&&r.data;if(!d)return false;
+    if(which==="mon"&&d.sections){Object.assign(MON,d)}
+    else if(which==="drills"&&d.manifest){Object.assign(DRILLDATA,d);if(typeof DRILLS_RESET==="function")DRILLS_RESET()}
+    else if(which==="laws"&&Array.isArray(d.arts)){Object.assign(LAWS,d)}
+    else return false;
+    REF[which]=true;rebuildRES();return true}
+  catch(e){console.warn("reference load failed",which,e.message);return false}
+  finally{REF.busy[which]=false}}
+async function cloudLaws(){if(REF.laws||!CLOUD)return true;toast("Loading the law book...");const ok=await cloudRef("laws");if(ok){render()}else toast("The law book could not be loaded right now.");return ok}
 async function cloudStart(){
   USERS.splice(0,USERS.length,...USERS.filter(u=>u.id==="public"));
   await cloudPull(true);
@@ -2946,6 +2952,7 @@ async function cloudStart(){
   USERS.push({id:a.profile_id,role:CL.role,profile:a.profile_id,label:(p&&p.name)||SBS.email,district:a.district||undefined,lodge:a.lodge||undefined});
   S.user=a.profile_id;S.tab="feed";if(S.profiles[a.profile_id])S.prof=a.profile_id;CL.on=true;
   if(CL.ver)applyVerification();
+  if(!needsVerify()){Promise.all([cloudRef("mon"),cloudRef("drills")]).then(ch=>{if(ch.some(Boolean)){tabs();render()}})}
   CL.snap=Object.assign({},CL.snap);save();render();clearInterval(CL.poll);CL.poll=setInterval(()=>{if(!document.hidden)cloudPull(false).catch(()=>{})},15000);clSched()}
 function clMsg(t){const m=document.getElementById("cl-msg");if(m)m.textContent=t}
 async function cloudSignIn(){const em=(document.getElementById("cl-email").value||"").trim(),pw=document.getElementById("cl-pw").value;if(!em||!pw){clMsg("Enter your email and password.");return}
@@ -3001,6 +3008,7 @@ async function cloudVerify(){const el=document.getElementById("vf-link"),link=(e
     CL.ver=(await sbFetch("/rest/v1/verifications?select=*&user_id=eq."+SBS.uid))[0]||{degree:j.card.degree,as_of:j.card.asOf,lodges:j.card.lodges,office:j.card.office,verified_at:new Date().toISOString()};
     applyVerification();logIt("verified their Grand Lodge of Texas card");
     try{const a=(await sbFetch("/rest/v1/accounts?select=*&user_id=eq."+SBS.uid))[0];if(a){CL.role=a.role||"member";const u=USERS.find(x=>x.id===a.profile_id);if(u){u.role=CL.role;if(a.district)u.district=a.district;if(a.lodge)u.lodge=a.lodge}}}catch(e){}
+    Promise.all([cloudRef("mon"),cloudRef("drills")]).then(ch=>{if(ch.some(Boolean))render()});
     toast(j.granted?`Verified. Welcome, Brother. You have ${j.granted.role==="ddgm"?"DDGM":"DI"} rights for District ${j.granted.district}.`:"Verified. Welcome, Brother.");if(S.tab!=="account")S.tab="feed";render();scrollTo(0,0)
   }catch(e){msg("Could not reach the verification service: "+e.message)}}
 function cloudSignOut(){SBS=null;sbSave();CL.on=false;CL.snap={};CL.last="1970-01-01T00:00:00+00:00";clearInterval(CL.poll)}
