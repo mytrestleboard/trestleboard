@@ -775,7 +775,7 @@ const POS_DEF={
  district:["District Deputy Grand Master","District Instructor","District Education Officer","District Communications Officer"]};
 const refKey=r=>(r.t==="l"?"l:":r.t==="d"?"d:":"e:")+r.id;
 function posDefault(key){
-  if(key[0]==="l")return [...OFFICES];
+  if(key[0]==="l")return [...(+key.slice(2)===0?GL_OFFICES:OFFICES)];
   if(key[0]==="d")return [...POS_DEF.district];
   const e=entById(key.slice(2));if(!e)return [];
   if(e.t==="York Rite")return [...POS_DEF[e.k]];
@@ -1404,17 +1404,20 @@ function item(l){
   return `<button type="button" class="item" data-lodge="${l.n}" aria-current="${S.sel===l.n}">${logoThumb(l.logo,l.gl?"GL":l.n)}
     <span style="min-width:0"><span class="iname">${esc(l.name)}</span><span class="isub">${esc(l.city||"—")} · ${l.gl?"Statewide body":l.d==="Statewide"?"Statewide":"Dist. "+esc(l.d)}</span></span><span>${tags}</span></button>`;
 }
+// Grand Lodge of Texas grand officers, in order (grandlodgeoftexas.org, Oct 2026).
+const GL_OFFICES=["Grand Master","Deputy Grand Master","Grand Senior Warden","Grand Junior Warden","Grand Treasurer","Grand Secretary","Grand Chaplain","Grand Orator","Grand Marshal","Grand Senior Deacon","Grand Junior Deacon","Grand Senior Steward","Grand Junior Steward","Grand Pursuivant","Grand Musician","Grand Photographer","Grand Tiler"];
+const offs=l=>l&&l.gl?GL_OFFICES:OFFICES;
 const OFFICES=["Worshipful Master","Senior Warden","Junior Warden","Treasurer","Secretary","Chaplain","Senior Deacon","Junior Deacon","Senior Steward","Junior Steward","Marshal","Master of Ceremonies","Musician","Tiler"];
 const lodgeRe=l=>new RegExp("No\\.\\s*"+l.n+"\\b");
-function officeIn(p,l){const c=holds(p,"l:"+l.n).filter(t=>OFFICES.includes(t));
-  c.sort((a,b)=>OFFICES.indexOf(a)-OFFICES.indexOf(b));return c[0]||""}
+function officeIn(p,l){const O=offs(l),c=holds(p,"l:"+l.n).filter(t=>O.includes(t));
+  c.sort((a,b)=>O.indexOf(a)-O.indexOf(b));return c[0]||""}
 const lodgeRoster=l=>Object.entries(S.profiles).filter(([,p])=>p.lodges.some(x=>x.n===l.n&&!x.pending));
 const manualOf=(l,o)=>{const m=(S.manual||{})[l.n];if(m&&Object.prototype.hasOwnProperty.call(m,o)&&m[o])return m[o];return (OFFPRE[l.n]||{})[o]||""};
 const manualPre=(l,o)=>{const m=(S.manual||{})[l.n];return !(m&&Object.prototype.hasOwnProperty.call(m,o)&&m[o])&&!!(OFFPRE[l.n]||{})[o]};
 function officerList(l){
   const lk=Object.entries(S.profiles).map(([id,p])=>({id,p,o:officeIn(p,l)})).filter(x=>x.o);
-  const mn=OFFICES.filter(o=>manualOf(l,o)&&!lk.some(x=>x.o===o)).map(o=>({m:manualOf(l,o),o,pre:manualPre(l,o)}));
-  const rows=[...lk,...mn].sort((a,b)=>OFFICES.indexOf(a.o)-OFFICES.indexOf(b.o));
+  const O=offs(l),mn=O.filter(o=>manualOf(l,o)&&!lk.some(x=>x.o===o)).map(o=>({m:manualOf(l,o),o,pre:manualPre(l,o)}));
+  const rows=[...lk,...mn].sort((a,b)=>O.indexOf(a.o)-O.indexOf(b.o));
   if(!rows.length)return `<p class="hint">No officers listed yet.${canEdit(l)?" Use Edit lodge info to assign them.":""}</p>`;
   return `<div class="cards">${rows.map(r=>r.m?`<div class="card"><span style="display:flex;gap:10px;align-items:center"><span class="avatar">${initials(r.m)}</span><span class="t">${esc(r.m)}</span></span><span><span class="chip acc">${esc(r.o)}</span> <span class="isub">${r.pre?"From Grandview, Oct 2026":"Not on the site yet"}</span></span></div>`:`<button type="button" class="card" data-person="${r.id}"><span style="display:flex;gap:10px;align-items:center"><span class="avatar">${initials(r.p.name)}</span><span class="t">${esc(r.p.name)}</span></span><span><span class="chip acc">${esc(r.o)}</span></span></button>`).join("")}</div>`}
 const APP_STATUS=["Received","Elected","Rejected","Withdrawn","Initiated"];
@@ -1496,12 +1499,12 @@ function applicationsBlock(l){
     ${a.status==="Rejected"?`<span class="hint">Rejected: no lodge may receive his petition until the time he was rejected for has expired (Art. 457).</span>`:""}
     ${hits.length?`<div class="mon-ed" style="border-left-color:#b3261e"><b>Possible duplicate</b>${hits.map(h=>`<div>${esc(dupText(h))}</div>`).join("")}</div>`:""}</div>`}).join("")}</div>`:`<p class="hint">No applications recorded yet.</p>`}</div>`}
 function officerManager(l){
-  if(l.gl||!canEdit(l))return "";
-  const ros=lodgeRoster(l).sort((a,b)=>a[1].name.localeCompare(b[1].name));
+  if(!canEdit(l))return "";
+  const ros=(l.gl?realProfiles():lodgeRoster(l)).sort((a,b)=>a[1].name.localeCompare(b[1].name));
   const holder=o=>{const h=ros.find(([,p])=>holds(p,"l:"+l.n).includes(o));return h?h[0]:""};
   return `<div class="section"><h3 class="sub">Officers</h3><p class="hint" style="margin:0 0 10px">For each office, pick a member of this lodge, or choose "Type a name" if he is not on the site yet. A picked member gets the title on his profile. A typed name is just text. When he joins, come back here and switch the office to him.</p>
   ${UI.offAsk&&UI.offAsk.lodge===l.n?`<div class="mon-ed" style="border-left-color:#b3261e;max-width:520px;margin-bottom:10px"><b>Is this him? "${esc(UI.offAsk.typed)}" for ${esc(UI.offAsk.o)}</b><div class="hint" style="margin:4px 0 8px">Someone with that name is already on My Trestle Board. Linking him gives him the title on his profile.</div>${UI.offAsk.ids.map(id=>S.profiles[id]?`<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:6px"><span><b>${esc(S.profiles[id].name)}</b><br><span class="isub">${esc(personLine(S.profiles[id]))}</span></span><button class="btn small" type="button" data-act="off-yes" data-pid="${id}">Yes, this is him</button></div>`:"").join("")}<button class="btn ghost small" type="button" data-act="off-no">No, keep the typed name</button></div>`:""}
-  <div class="stack" style="padding:0;gap:8px">${OFFICES.map((o,i)=>{const h=holder(o),mv=h?"":manualOf(l,o);return `<div class="inline-form" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="min-width:150px">${o}</b>
+  <div class="stack" style="padding:0;gap:8px">${offs(l).map((o,i)=>{const h=holder(o),mv=h?"":manualOf(l,o);return `<div class="inline-form" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="min-width:150px">${o}</b>
     <select id="off-${i}" class="off-sel" data-i="${i}" aria-label="${o}"><option value="">Vacant</option>${ros.map(([id,p])=>`<option value="${id}" ${id===h?"selected":""}>${esc(p.name)} (${degP(p)})</option>`).join("")}<option value="__manual" ${mv?"selected":""}>Type a name (not a member yet)</option></select>
     <input type="text" id="offt-${i}" value="${esc(mv)}" placeholder="Full name" aria-label="${o} name" style="${mv?"":"display:none"}">
     <button class="btn small" type="button" data-act="off-set" data-i="${i}">Save</button></div>`}).join("")}</div></div>
@@ -1567,10 +1570,10 @@ function lodgeDetail(){
   </dl>
   ${mapBlock(l)}
   <div class="section"><h3 class="sub">Calendar</h3>${lodgeCal(l)}</div>
-  ${bylawsBlock(l)}${l.gl?"":`<div class="section"><h3 class="sub">Officers</h3>${signedIn()?officerList(l):`<p class="locked">🔒 Sign in to see the officers.</p>`}</div>`}
+  ${bylawsBlock(l)}${`<div class="section"><h3 class="sub">${l.gl?"Grand Lodge officers":"Officers"}</h3>${signedIn()?officerList(l):`<p class="locked">🔒 Sign in to see the officers.</p>`}</div>`}
   ${l.gl?"":pendSection("l:"+l.n,lname(l))}
   ${subgroupList(l.gl?"gl":"l:"+l.n)}
-  <div class="section"><h3 class="sub">${l.gl?"Grand Lodge officers":"Members on My Trestle Board"}</h3>${l.gl?"":`<p class="hint" style="margin:0 0 10px">These are only the members who have joined My Trestle Board. They are not the lodge's full membership.</p>`}${l.gl||canSeePrivate(l)
+  <div class="section"><h3 class="sub">${l.gl?"Grand Lodge on My Trestle Board":"Members on My Trestle Board"}</h3>${l.gl?"":`<p class="hint" style="margin:0 0 10px">These are only the members who have joined My Trestle Board. They are not the lodge's full membership.</p>`}${l.gl||canSeePrivate(l)
     ?(roster.length?`<div class="cards">${roster.map(([id,p])=>personCard(id,p,l.n)).join("")}</div>`:`<p class="hint">No ${l.gl?"officers":"members of this lodge"} have joined My Trestle Board yet.${l.gl?"":" Be the first from this lodge. <b>One Trestle Board for all of Freemasonry.</b>"}</p>`)
     :`<p class="locked">🔒 Only members of ${esc(lname(l))} and the district officers over it can see the roster.</p>`}</div>
   <div class="section"><h3 class="sub">Trestle Board</h3>${(()=>{const ps=S.posts.filter(p=>postReachesLodge(p,l)&&canSeePost(p)).sort((a,b)=>b.at.localeCompare(a.at)).slice(0,3);
@@ -2664,7 +2667,7 @@ document.addEventListener("click",e=>{
     case "post-edit-cancel":UI.editPost=null;render();break;
     case "del-post":{const dp=S.posts.find(p=>p.id===t.dataset.id);if(dp){const w=who(dp.by);audit(postScope(dp.board),`deleted a post by ${w.name}`)}}S.posts=S.posts.filter(p=>p.id!==t.dataset.id);toast("Post deleted");render();break;
     case "res":toast(`${t.dataset.res} is planned`);break;
-    case "off-set":{const l=byNum(S.sel);if(!l||!canEdit(l))break;const o=OFFICES[+t.dataset.i],pid=(document.getElementById("off-"+t.dataset.i)||{}).value||"";
+    case "off-set":{const l=byNum(S.sel);if(!l||!canEdit(l))break;const o=offs(l)[+t.dataset.i],pid=(document.getElementById("off-"+t.dataset.i)||{}).value||"";
       const typed=pid==="__manual"?((document.getElementById("offt-"+t.dataset.i)||{}).value||"").trim().replace(/\s+/g," "):"";
       if(pid==="__manual"&&!typed){toast("Type a name first, or choose Vacant");break}
       if(pid==="__manual"&&UI.offSkip!==o+"|"+typed){const hits=memberMatches(typed).filter(([id,p])=>normName(p.name)===normName(typed)||normName(p.name).includes(normName(typed))||normName(typed).includes(normName(p.name))).slice(0,4);
