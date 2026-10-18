@@ -132,7 +132,7 @@ body.out .viewas,body.out .demo-note{display:none}
 .login .fake span{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:4px}
 .login .fake div{border:1px solid var(--line);background:var(--sunk);border-radius:6px;padding:9px 10px;color:var(--muted);font-size:14px;user-select:none;cursor:default}
 .login .btn{width:100%;padding:10px 14px;margin-top:6px}
-.login .clf{display:grid;gap:4px;font-size:13px;color:var(--muted)}.login .clf input{width:100%;box-sizing:border-box;font-size:16px;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:var(--sunk);color:var(--fg)}
+.login .clf{display:grid;gap:4px;font-size:13px;color:var(--muted)}.pwwrap{position:relative;display:block}.pwwrap input{padding-right:64px!important}.pwwrap .eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;padding:6px 8px}.login .clf input{width:100%;box-sizing:border-box;font-size:16px;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:var(--sunk);color:var(--fg)}
 .login .hint{margin-top:14px}
 .demo-note{background:var(--gold-soft);font-size:13px}
 .demo-note .wrap{padding-block:8px;display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap;align-items:center}
@@ -974,8 +974,8 @@ function publicView(){
 let LM="in";
 function loginView(){
   return `<div class="hero"><div class="hero-img"></div><div class="hero-in"><svg class="tlogo" id="hero-logo" viewBox="0 0 34 34" aria-hidden="true"></svg><b>My Trestle Board</b><small>One Trestle Board for all of Freemasonry.</small></div></div><div class="panel login"><h2>My Trestle Board</h2><p class="sub" style="margin-bottom:2px"><b>One Trestle Board for all of Freemasonry.</b></p><p class="sub">${CLOUD?"For Texas Masons and lodge officers":"Sign in to your lodges"}</p>
-    ${CLOUD?`<form id="cloudform" style="display:grid;gap:12px;text-align:left"><h3 style="margin:0;font-size:18px;text-align:center">${LM==="up"?"Create your account":"Sign in"}</h3>${LM==="up"?`<p class="hint" style="margin:0;text-align:center">Step 1 of 2: your email and a password. Step 2: scan your Grand Lodge of Texas card.</p>`:""}<label class="clf">Email<input type="email" id="cl-email" autocomplete="${LM==="up"?"email":"username"}" inputmode="email"></label><label class="clf">Password<input type="password" id="cl-pw" autocomplete="${LM==="up"?"new-password":"current-password"}"></label>
-      <button class="btn" type="submit" id="login-btn">${LM==="up"?"Create account":"Sign in"}</button><p class="hint" id="cl-msg" role="status" style="margin:0;text-align:center"></p><p style="margin:0;text-align:center">${LM==="up"?`Already have an account? <button class="linkbtn" type="button" data-act="lm-in">Sign in</button>`:`New here? <button class="linkbtn" type="button" data-act="lm-up">Create an account</button>`}</p></form>`
+    ${CLOUD?`<form id="cloudform" style="display:grid;gap:12px;text-align:left"><h3 style="margin:0;font-size:18px;text-align:center">${LM==="up"?"Create your account":LM==="forgot"?"Reset your password":"Sign in"}</h3>${LM==="forgot"?`<p class="hint" style="margin:0;text-align:center">Enter your email and we will send you a link to set a new password.</p>`:""}${LM==="up"?`<p class="hint" style="margin:0;text-align:center">Step 1 of 2: your email and a password. Step 2: scan your Grand Lodge of Texas card.</p>`:""}<label class="clf">Email<input type="email" id="cl-email" autocomplete="${LM==="up"?"email":"username"}" inputmode="email"></label>${LM==="forgot"?"":`<label class="clf">Password<span class="pwwrap"><input type="password" id="cl-pw" autocomplete="${LM==="up"?"new-password":"current-password"}"><button type="button" class="eye" data-act="pw-eye" aria-label="Show password">Show</button></span></label>`}
+      <button class="btn" type="submit" id="login-btn">${LM==="up"?"Create account":LM==="forgot"?"Send reset link":"Sign in"}</button><p class="hint" id="cl-msg" role="status" style="margin:0;text-align:center"></p><p id="cl-forgot" style="margin:0;text-align:center;display:${LM==="in"&&UI.pwFail?"block":"none"}"><button class="linkbtn" type="button" data-act="lm-forgot">Forgot your password?</button></p><p style="margin:0;text-align:center">${LM==="up"?`Already have an account? <button class="linkbtn" type="button" data-act="lm-in">Sign in</button>`:LM==="forgot"?`<button class="linkbtn" type="button" data-act="lm-in">Back to sign in</button>`:`New here? <button class="linkbtn" type="button" data-act="lm-up">Create an account</button> · <button class="linkbtn" type="button" data-act="lm-forgot">Forgot password?</button>`}</p></form>`
     :`<div class="fake" aria-hidden="true"><span>Username</span><div>Username or email</div></div>
     <div class="fake" aria-hidden="true"><span>Password</span><div>Password</div></div>
     <button class="btn" type="button" data-act="signin" id="login-btn">Login</button>
@@ -1112,6 +1112,7 @@ function render(){
   settleFirstClaims();applyBodyInfo();L=lodges(); renderSwitcher(); renderAcct();
   const v=document.getElementById("view");
   document.body.classList.toggle("out",!signedIn());
+  if(RESET){document.getElementById("tabs").innerHTML="";v.innerHTML=newPasswordView();tlHeader();return}
   if(!signedIn()){document.getElementById("tabs").innerHTML=pubNav(UI.login?"portal":PUB.sel?(PUB.selT==="l"?"lodges":"bodies"):PUB.tab);v.innerHTML=UI.login?loginView():publicView();tlHeader();save();return}
   if(needsVerify()){document.getElementById("tabs").innerHTML="";v.innerHTML=verifyView();tlHeader();save();return}
   tabs();
@@ -2469,6 +2470,8 @@ document.addEventListener("click",e=>{
     case "profile-back":S.tab=S.prevTab&&S.prevTab!=="profile"?S.prevTab:"feed";UI={editing:false,editProfile:false,adding:null,confirmDel:null};render();break;
     case "cloud-signin":cloudSignIn();break;
     case "lm-up":LM="up";render();break;
+    case "lm-forgot":LM="forgot";render();break;
+    case "pw-eye":{const i=document.getElementById("cl-pw")||document.getElementById("np-pw");if(i){i.type=i.type==="password"?"text":"password";t.textContent=i.type==="password"?"Show":"Hide"}break}
     case "lm-in":LM="in";render();break;
     case "cloud-signup":cloudSignUp();break;
     case "recheck-card":{const bx=document.getElementById("recheck-box");if(bx){bx.style.display=bx.style.display==="none"?"block":"none"}break}
@@ -2630,7 +2633,8 @@ document.addEventListener("click",e=>{
 });
 document.addEventListener("submit",e=>{
   e.preventDefault(); const f=e.target; const v=id=>(document.getElementById(id)?.value||"").trim();
-  if(f.id==="cloudform"){if(LM==="up")cloudSignUp();else cloudSignIn();return}
+  if(f.id==="cloudform"){if(LM==="up")cloudSignUp();else if(LM==="forgot")cloudForgot();else cloudSignIn();return}
+  if(f.id==="newpwform"){cloudSetPassword();return}
   if(f.id==="verifyform"){cloudVerify();return}
   if(f.id==="formform"){formSave();return}
   if(f.id==="editform"){
@@ -2859,7 +2863,7 @@ async function cloudStart(){
   CL.snap=Object.assign({},CL.snap);save();render();clearInterval(CL.poll);CL.poll=setInterval(()=>{if(!document.hidden)cloudPull(false).catch(()=>{})},15000);clSched()}
 function clMsg(t){const m=document.getElementById("cl-msg");if(m)m.textContent=t}
 async function cloudSignIn(){const em=(document.getElementById("cl-email").value||"").trim(),pw=document.getElementById("cl-pw").value;if(!em||!pw){clMsg("Enter your email and password.");return}
-  clMsg("Signing in...");try{const j=await sbFetch("/auth/v1/token?grant_type=password",{method:"POST",auth:false,body:{email:em,password:pw}});SBS=sbSess(j);sbSave();await cloudStart()}catch(e){clMsg(e.message==="Invalid login credentials"?"That email and password don't match. If you just created the account, confirm your email first.":e.message)}}
+  clMsg("Signing in...");try{const j=await sbFetch("/auth/v1/token?grant_type=password",{method:"POST",auth:false,body:{email:em,password:pw}});SBS=sbSess(j);sbSave();await cloudStart()}catch(e){UI.pwFail=true;const fl=document.getElementById("cl-forgot");if(fl)fl.style.display="block";clMsg(e.message==="Invalid login credentials"?"That email and password don't match. Check the password with Show, or reset it below.":e.message)}}
 async function cloudSignUp(){const em=(document.getElementById("cl-email").value||"").trim(),pw=document.getElementById("cl-pw").value,nm="";if(!em||!pw){clMsg("Enter your email and a password to create an account.");return}
   if(pw.length<8){clMsg("Use a password of at least 8 characters.");return}
   clMsg("Creating account...");try{const j=await sbFetch("/auth/v1/signup",{method:"POST",auth:false,body:{email:em,password:pw,data:{}}});if(j&&j.access_token){SBS=sbSess(j,nm);sbSave();await cloudStart()}else clMsg("Almost done. We sent a confirmation link to your email. Tap it, then come back here, sign in, and scan your card.")}catch(e){clMsg(e.message)}}
@@ -2874,6 +2878,21 @@ function verifyInner(){return `
   <form id="verifyform" style="display:grid;gap:10px;text-align:left"><label>Link from your card<input type="text" id="vf-link" placeholder="https://tx.grandview.systems/public_verification?..." autocomplete="off"></label><button class="btn" type="submit">Verify my card</button><p class="hint" id="vf-msg" role="status" style="margin:0">We read only your name, degree, good standing and lodges from the Grand Lodge page, and we do not keep your photo.</p></form>
   `}
 function verifyView(){return `<div class="panel login"><h2>Verify you are a Mason</h2><p class="sub">Your account is created. One last step: confirm your membership with your Grand Lodge of Texas card.</p>${verifyInner()}<p class="hint">No card? Ask your lodge Secretary to help, or sign out and come back later.</p><button class="linkbtn" type="button" data-act="signout">Sign out</button></div>`}
+async function cloudForgot(){const em=(document.getElementById("cl-email").value||"").trim();if(!em){clMsg("Enter your email first.");return}
+  clMsg("Sending...");try{await sbFetch("/auth/v1/recover",{method:"POST",auth:false,body:{email:em}});clMsg("Check your email for a link to set a new password. It can take a minute to arrive.")}catch(e){clMsg(e.message)}}
+let RESET=null;
+function newPasswordView(){return `<div class="hero"><div class="hero-img"></div><div class="hero-in"><svg class="tlogo" id="hero-logo" viewBox="0 0 34 34" aria-hidden="true"></svg><b>My Trestle Board</b><small>One Trestle Board for all of Freemasonry.</small></div></div><div class="panel login"><h2>Set a new password</h2><p class="sub">For ${esc(RESET&&RESET.email||"your account")}</p>
+  <form id="newpwform" style="display:grid;gap:12px;text-align:left"><label class="clf">New password<span class="pwwrap"><input type="password" id="np-pw" autocomplete="new-password"><button type="button" class="eye" data-act="pw-eye" aria-label="Show password">Show</button></span></label><button class="btn" type="submit">Save password and sign in</button><p class="hint" id="cl-msg" role="status" style="margin:0;text-align:center"></p></form></div>`}
+async function cloudSetPassword(){const pw=document.getElementById("np-pw").value;if(pw.length<8){clMsg("Use a password of at least 8 characters.");return}
+  clMsg("Saving...");try{await sbFetch("/auth/v1/user",{method:"PUT",body:{password:pw}});RESET=null;toast("Password saved.");await cloudStart()}catch(e){clMsg(e.message)}}
+function cloudHash(){if(!CLOUD||!location.hash||location.hash.indexOf("access_token=")<0)return false;
+  const h=new URLSearchParams(location.hash.slice(1)),at=h.get("access_token"),rt=h.get("refresh_token"),ty=h.get("type");if(!at)return false;
+  history.replaceState(null,"",location.pathname+location.search);
+  let uid="",email="";try{const pl=JSON.parse(atob(at.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));uid=pl.sub||"";email=pl.email||""}catch(e){}
+  SBS={access:at,refresh:rt||"",exp:Math.floor(Date.now()/1000)+(+h.get("expires_in")||3600),uid,email,name:""};sbSave();
+  if(ty==="recovery"){RESET={email};return "reset"}
+  return "session"}
+
 let SCAN=null;
 function scanStop(){if(SCAN){SCAN.stop=true;try{SCAN.stream.getTracks().forEach(t=>t.stop())}catch(e){}SCAN=null}const v=document.getElementById("scanvid"),b=document.getElementById("scanstop");if(v){v.style.display="none";v.srcObject=null}if(b)b.style.display="none"}
 async function scanCard(){const msg=t=>{const m=document.getElementById("vf-msg");if(m)m.textContent=t};
@@ -2898,7 +2917,7 @@ async function cloudVerify(){const el=document.getElementById("vf-link"),link=(e
   }catch(e){msg("Could not reach the verification service: "+e.message)}}
 function cloudSignOut(){SBS=null;sbSave();CL.on=false;CL.snap={};CL.last="1970-01-01T00:00:00+00:00";clearInterval(CL.poll)}
 if(CLOUD){document.body.classList.add("cloud");USERS.splice(0,USERS.length,...USERS.filter(u=>u.id==="public"));S.user="public"}
-{const q=new URLSearchParams(location.search),ef=q.get("embed"),es=q.get("scope");if(ef&&es&&(ef==="posts"||ef==="cal")){renderEmbed(ef,es)}else{render();tlSplash();if(CLOUD&&SBS)cloudStart().catch(e=>{console.warn("cloud start failed",e.message);if(e.status===401){SBS=null;sbSave()}})}}
+{const q=new URLSearchParams(location.search),ef=q.get("embed"),es=q.get("scope");if(ef&&es&&(ef==="posts"||ef==="cal")){renderEmbed(ef,es)}else{const hk=cloudHash();render();tlSplash();if(CLOUD&&SBS&&hk!=="reset")cloudStart().catch(e=>{console.warn("cloud start failed",e.message);if(e.status===401){SBS=null;sbSave()}})}}
 document.addEventListener("submit",e=>{const f=e.target;if(f.id==="joinform"){e.preventDefault();PUB.joinQ=f.q.value;const r=pubNear(PUB.joinQ,3);PUB.joinRes=r&&r.length?r:"none";render()}if(f.id==="nearform"){e.preventDefault();PUB.where=document.getElementById("near-q").value.trim();PUB.rad=+document.getElementById("near-r").value;render()}});
 document.addEventListener("input",e=>{if(e.target.id==="pub-q"){PUB.q=e.target.value;document.getElementById("pub-list").innerHTML=pubList();return}});
 document.addEventListener("input",e=>{const t=e.target;if(t.id==="mon-q"){S.monQ=t.value;const r=document.getElementById("mon-res");if(r)r.innerHTML=monResults();return}if(t.classList&&t.classList.contains("poll-opt")&&DRAFT.poll)DRAFT.poll[+t.dataset.i]=t.value});
