@@ -146,23 +146,23 @@ nav.tabs .subnav button{display:flex;justify-content:space-between;align-items:c
 nav.tabs .subnav button:hover{background:var(--sunk)}
 nav.tabs .subnav .badge{position:static}
 .ls{display:none}
+.subrow{display:none}
 @media (max-width:700px){
-  body::after{bottom:calc(84px + env(safe-area-inset-bottom,0px));right:16px}
-  nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;margin:0;padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--line);border-bottom:0;flex-wrap:nowrap;justify-content:space-around;gap:0}
-  .tabgrp{flex:1;min-width:0;position:static}
-  nav.tabs>.tabgrp>button[data-tab],nav.tabs>.tabgrp>button[data-go]{flex:1;min-width:0}
-  nav.tabs>.tabgrp>button:not(.caret){width:100%}
-  nav.tabs>.tabgrp>.caret{flex:none;width:30px;padding:10px 0}
   .lf{display:none}.ls{display:inline}
-  nav.tabs>.tabgrp>button{padding:14px 2px 12px;min-height:56px;font-size:14px;font-weight:600;text-align:center;border-bottom:0;border-top:3px solid transparent;white-space:nowrap;line-height:1.2;letter-spacing:.01em}
-  nav.tabs>.tabgrp>button[aria-selected=true]{border-top-color:var(--accent);color:var(--accent)}
-  nav.tabs>.tabgrp>.caret{display:none}
-  nav.tabs>.tabgrp>button[data-go]::after{content:"▾";display:inline-block;margin-left:3px;font-size:15px;line-height:1;color:var(--accent);opacity:.9;transform:translateY(1px)}
-  nav.tabs>.tabgrp>button[data-go][aria-selected=true]::after{content:"▴"}
-  nav.tabs>.tabgrp{display:flex;align-items:stretch}
-  .subnav{position:fixed;left:12px;right:12px;top:auto;bottom:calc(68px + env(safe-area-inset-bottom,0px));min-width:0}
-  nav.tabs .subnav button{padding:14px 12px;font-size:16px}
-  main.wrap{padding-bottom:84px}
+  nav.tabs{position:sticky;top:0;z-index:40;margin:0 -16px 14px;padding:0;background:var(--surface);border-bottom:1px solid var(--line);flex-wrap:wrap;gap:0}
+  nav.tabs>.tabgrp{flex:1 0 auto;min-width:0;position:static;display:flex}
+  nav.tabs>.tabgrp>button:not(.caret){width:100%;min-width:0}
+  nav.tabs>.tabgrp>button{padding:13px 10px 11px;min-height:48px;font-size:14px;font-weight:600;text-align:center;border-bottom:3px solid transparent;white-space:nowrap;line-height:1.2}
+  nav.tabs>.tabgrp>button[aria-selected=true]{border-bottom-color:var(--accent);color:var(--accent)}
+  nav.tabs>.tabgrp>.caret,nav.tabs .subnav{display:none}
+  nav.tabs>.tabgrp[style]{margin-left:0!important}
+  .subrow{display:flex;flex:0 0 100%;overflow-x:auto;gap:8px;padding:8px 12px 10px;background:var(--sunk);border-top:1px solid var(--line);-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .subrow::-webkit-scrollbar{display:none}
+  .subrow button{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:999px;padding:7px 14px;font-size:14px;font-weight:500;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+  .subrow button[aria-selected=true]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+  .subrow .badge{position:static}
+  main.wrap{padding-bottom:24px}
+  body::after{bottom:16px;right:16px}
 }
 nav.tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:8px 12px;cursor:pointer;color:var(--muted);font-weight:500;white-space:nowrap}
 nav.tabs button[aria-selected=true]{color:var(--fg);border-bottom-color:var(--accent)}
@@ -1003,8 +1003,18 @@ function tabs(){
     const sel=S.tab===g.k||(g.k==="feed"&&S.tab==="cal")||(g.k==="res"&&(S.tab==="drills"||S.tab==="monitor"||S.tab==="laws"||S.tab==="bylaws"))||(g.k==="members"&&(S.tab==="mentor"||S.tab==="card"));
     if(!g.sub) return `<div class="tabgrp"><button role="tab" type="button" data-tab="${g.k}" aria-selected="${sel}">${nl(g.l,g.sh)}</button></div>`;
     const open=UI.navMenu===g.k;
-    return `<div class="tabgrp"><button role="tab" type="button" data-go="${g.main}" aria-selected="${sel}">${nl(g.l,g.sh)}</button><button type="button" class="caret" data-act="navmenu" data-grp="${g.k}" aria-haspopup="true" aria-expanded="${open}" aria-selected="${sel}" aria-label="${g.l} menu"><span aria-hidden="true">▾</span></button>${open?`<div class="subnav" role="menu">${g.sub.map(([go,lab,n])=>`<button type="button" role="menuitem" data-go="${go}">${lab}${n?`<span class="badge">${n}</span>`:""}</button>`).join("")}</div>`:""}</div>`}).join("");
+    return `<div class="tabgrp"><button role="tab" type="button" data-go="${g.main}" aria-selected="${sel}">${nl(g.l,g.sh)}</button><button type="button" class="caret" data-act="navmenu" data-grp="${g.k}" aria-haspopup="true" aria-expanded="${open}" aria-selected="${sel}" aria-label="${g.l} menu"><span aria-hidden="true">▾</span></button>${open?`<div class="subnav" role="menu">${g.sub.map(([go,lab,n])=>`<button type="button" role="menuitem" data-go="${go}">${lab}${n?`<span class="badge">${n}</span>`:""}</button>`).join("")}</div>`:""}</div>`}).join("")+subRow(T);
 }
+function curGo(){
+  if(S.tab==="cal")return "feed:cal";if(S.tab==="feed")return "feed:feed";
+  if(S.tab==="dir")return S.dirFind?"dir:find":"dir:mine";
+  if(S.tab==="bodies")return "bodies:"+(S.bodyT==null?"home":S.bodyT===""?"all":S.bodyT);
+  if(S.tab==="profile")return "members:profile";if(S.tab==="card")return "members:card";if(S.tab==="mentor")return "members:mentor";if(S.tab==="messages")return "members:messages";if(S.tab==="members")return "members";
+  return S.tab}
+function subRow(T){
+  const cur=curGo(),g=T.find(x=>x.sub&&x.sub.some(([go])=>go===cur))||T.find(x=>x.sub&&x.k===cur.split(":")[0]);
+  if(!g)return "";
+  return `<div class="subrow" role="tablist" aria-label="${g.l} sections">${g.sub.map(([go,lab,n])=>`<button type="button" data-go="${go}" aria-selected="${go===cur}">${lab}${n?`<span class="badge">${n}</span>`:""}</button>`).join("")}</div>`}
 function goTo(go){
   const[tab,sub]=go.split(":");
   UI={editing:false,editProfile:false,adding:null,confirmDel:null};
@@ -2410,7 +2420,7 @@ document.addEventListener("click",e=>{
   if(UI.menu&&!e.target.closest("#acct")){UI.menu=false;renderAcct()}
   if(UI.navMenu&&!e.target.closest(".tabgrp")){UI.navMenu=null;tabs()}
   const t=e.target.closest("[data-tab],[data-go],[data-lodge],[data-act],[data-lodge-open],[data-person],[data-day]"); if(!t) return;
-  if(t.dataset.go){const grp=t.closest(".tabgrp"),car=grp&&grp.querySelector(".caret");if(car&&matchMedia("(max-width:700px)").matches&&t.getAttribute("aria-selected")==="true"){UI.navMenu=UI.navMenu===car.dataset.grp?null:car.dataset.grp;tabs();return}UI.navMenu=null;goTo(t.dataset.go);return}
+  if(t.dataset.go){UI.navMenu=null;goTo(t.dataset.go);return}
   if(t.dataset.tab){S.tab=t.dataset.tab;if(S.tab==="feed")S.feedFilter="all";if(S.tab==="bodies")S.bodyOpen=false;if(S.tab==="members")S.personOpen=false;if(S.tab==="dir"){S.dirFind=false;S.dirOpen=false;S.distPage=null;S.dist="";S.q=""}UI={editing:false,editProfile:false,adding:null,confirmDel:null};render();return}
   if(t.dataset.lodge){S.sel=+t.dataset.lodge;UI.editing=false;UI.adding=null;if(S.tab==="dir"&&S.dirFind)S.dirOpen=true;render();if(innerWidth<=820)document.getElementById("detail")?.scrollIntoView({behavior:"smooth"});return}
   if(t.dataset.lodgeOpen){openLodge(t.dataset.lodgeOpen);return}
