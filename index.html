@@ -403,7 +403,7 @@ body.out .login .btn{width:100%;margin-top:6px}
   <nav class="tabs" role="tablist" id="tabs"></nav>
   <section id="view"></section>
 </main>
-<div class="tl-foot"><i></i><span><b>One Trestle Board for all of Freemasonry.</b> · Pilot v0.3 · build Oct 18 4:48 PM</span></div>
+<div class="tl-foot"><i></i><span><b>One Trestle Board for all of Freemasonry.</b> · Pilot v0.3 · build Oct 18 5:04 PM</span></div>
 <div id="tl-splash" hidden><div class="in"><svg class="tlogo" id="spl-logo" viewBox="0 0 34 34" aria-hidden="true"></svg><b>My Trestle Board</b><small>One Trestle Board for all of Freemasonry.</small></div></div>
 <div class="toast" id="toast" hidden></div>
 
@@ -1388,8 +1388,8 @@ const lodgeRe=l=>new RegExp("No\\.\\s*"+l.n+"\\b");
 function officeIn(p,l){const c=holds(p,"l:"+l.n).filter(t=>OFFICES.includes(t));
   c.sort((a,b)=>OFFICES.indexOf(a)-OFFICES.indexOf(b));return c[0]||""}
 const lodgeRoster=l=>Object.entries(S.profiles).filter(([,p])=>p.lodges.some(x=>x.n===l.n&&!x.pending));
-const manualOf=(l,o)=>{const m=(S.manual||{})[l.n];if(m&&Object.prototype.hasOwnProperty.call(m,o))return m[o]||"";return (OFFPRE[l.n]||{})[o]||""};
-const manualPre=(l,o)=>{const m=(S.manual||{})[l.n];return !(m&&Object.prototype.hasOwnProperty.call(m,o))&&!!(OFFPRE[l.n]||{})[o]};
+const manualOf=(l,o)=>{const m=(S.manual||{})[l.n];if(m&&Object.prototype.hasOwnProperty.call(m,o)&&m[o])return m[o];return (OFFPRE[l.n]||{})[o]||""};
+const manualPre=(l,o)=>{const m=(S.manual||{})[l.n];return !(m&&Object.prototype.hasOwnProperty.call(m,o)&&m[o])&&!!(OFFPRE[l.n]||{})[o]};
 function officerList(l){
   const lk=Object.entries(S.profiles).map(([id,p])=>({id,p,o:officeIn(p,l)})).filter(x=>x.o);
   const mn=OFFICES.filter(o=>manualOf(l,o)&&!lk.some(x=>x.o===o)).map(o=>({m:manualOf(l,o),o,pre:manualPre(l,o)}));
@@ -2016,7 +2016,8 @@ function accountView(){
     <div class="actions" style="margin:0"><button class="btn" type="button" data-act="go-profile-edit">Edit my profile and privacy</button></div></div>
   <div class="panel pad"><h3 class="sub">Account</h3>
     ${CLOUD?`<div class="acct-row" style="margin:0"><div><b>Grand Lodge card</b><div class="hint" style="margin:0">${CL.ver?`Verified ${esc(CL.ver.as_of||"")}${CL.ver.office?" · "+esc(CL.ver.office):""}. Re-check to refresh your lodges and standing.`:"Not verified yet."}</div></div><button class="btn ghost small" type="button" data-act="recheck-card">${CL.ver?"Re-check my card":"Verify my card"}</button></div>
-    <div id="recheck-box" style="display:none;margin:10px 0 0">${verifyInner()}</div>`:`<div class="acct-row" style="margin:0"><div><b>Login</b><div class="hint" style="margin:0">Password and sign-in options arrive with real accounts. This demo signs you in as a sample user.</div></div><button class="btn ghost small" type="button" disabled>Change password</button></div>`}
+    <div id="recheck-box" style="display:none;margin:10px 0 0">${verifyInner()}</div>
+    <div class="acct-row" style="margin:12px 0 0"><div><b>Data loaded</b><div class="hint" style="margin:0">Officer lists for ${Object.keys(OFFPRE).length} lodges${REF.err?" · "+esc(REF.err):""} · Monitor ${REF.mon?"yes":"no"} · Drills ${REF.drills?"yes":"no"} · Law book ${REF.laws?"yes":"not opened yet"} · Role ${esc(CL.role)}</div></div><button class="btn ghost small" type="button" data-act="reload-data">Reload</button></div>`:`<div class="acct-row" style="margin:0"><div><b>Login</b><div class="hint" style="margin:0">Password and sign-in options arrive with real accounts. This demo signs you in as a sample user.</div></div><button class="btn ghost small" type="button" disabled>Change password</button></div>`}
     <div class="acct-row" style="margin:12px 0 0"><div><b>Notifications</b><div class="hint" style="margin:0">Choose which Trestle Board posts and events email you.</div></div><span class="chip">Planned</span></div>
     <div class="acct-row" style="margin:12px 0 0"><div><b>Dues</b><div class="hint" style="margin:0">Pay dues online.</div></div><span class="chip">Planned</span></div>
     <div class="actions" style="margin-top:16px"><button class="btn ghost" type="button" data-act="signout">Sign out</button></div></div></div>`;
@@ -2544,6 +2545,7 @@ document.addEventListener("click",e=>{
     case "pw-eye":{const i=document.getElementById("cl-pw")||document.getElementById("np-pw");if(i){i.type=i.type==="password"?"text":"password";t.textContent=i.type==="password"?"Show":"Hide"}break}
     case "lm-in":LM="in";render();break;
     case "cloud-signup":cloudSignUp();break;
+    case "reload-data":REF.offpre=0;REF.err="";location.reload();break;
     case "recheck-card":{const bx=document.getElementById("recheck-box");if(bx){bx.style.display=bx.style.display==="none"?"block":"none"}break}
     case "scan-card":scanCard();break;
     case "post-also":{const p=S.posts.find(x=>x.id===t.dataset.id);if(p&&boardsICanPost().some(b=>bKey(b)===t.dataset.k)&&pLink(p,t.dataset.k)){toast(`Shared to ${bName(bFromKey(t.dataset.k))}`);render()}break}
@@ -2931,25 +2933,28 @@ async function cloudPull(first){let changed=false,more=true;
       if(CL_MAP.includes(c)){S[c]=S[c]||{};if(r.deleted){delete S[c][id];delete CL.snap[c][id]}else{S[c][id]=r.data;CL.snap[c][id]=JSON.stringify(r.data)}}
       else if(CL_ARR.includes(c)){S[c]=S[c]||[];const i=S[c].findIndex(x=>String(x.id)===id);if(r.deleted){if(i>=0)S[c].splice(i,1);delete CL.snap[c][id]}else{if(i>=0)S[c][i]=r.data;else S[c].push(r.data);CL.snap[c][id]=JSON.stringify(r.data)}}
       else if(CL_ONE.includes(c)||c==="roles"){S[c]=r.data;CL.snap[c]={_:JSON.stringify(r.data)}}
+      else if(c==="offpre"){if(r.data&&typeof r.data==="object"&&!r.deleted){Object.assign(OFFPRE,r.data);REF.offpre=Object.keys(r.data).length}return}
+      else if(c==="ref"){if(r.data&&!r.deleted)applyRef(id,r.data);return}
       else return;
       changed=true})}
   if(changed){save();const a=document.activeElement,typing=a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&!/^(radio|checkbox|button|file)$/.test(a.type||"");if(!typing&&!first)render()}
   return changed}
-const REF={mon:false,drills:false,laws:false,busy:{}};
+const REF={mon:false,drills:false,laws:false,offpre:0,err:"",busy:{}};
+function applyRef(which,d){if(!d)return false;
+  if(which==="mon"&&d.sections){Object.assign(MON,d)}
+  else if(which==="drills"&&d.manifest){Object.assign(DRILLDATA,d)}
+  else if(which==="laws"&&Array.isArray(d.arts)){Object.assign(LAWS,d)}
+  else return false;
+  REF[which]=true;rebuildRES();return true}
 async function cloudRef(which){if(!CLOUD||!SBS||REF[which]||REF.busy[which])return false;REF.busy[which]=true;
-  try{const r=(await sbFetch("/rest/v1/docs?select=data&coll=eq.ref&id=eq."+which))[0];const d=r&&r.data;if(!d)return false;
-    if(which==="mon"&&d.sections){Object.assign(MON,d)}
-    else if(which==="drills"&&d.manifest){Object.assign(DRILLDATA,d);if(typeof DRILLS_RESET==="function")DRILLS_RESET()}
-    else if(which==="laws"&&Array.isArray(d.arts)){Object.assign(LAWS,d)}
-    else return false;
-    REF[which]=true;rebuildRES();return true}
+  try{const r=(await sbFetch("/rest/v1/docs?select=data&coll=eq.ref&id=eq."+which))[0];return applyRef(which,r&&r.data)}
   catch(e){console.warn("reference load failed",which,e.message);return false}
   finally{REF.busy[which]=false}}
 async function cloudLaws(){if(REF.laws||!CLOUD)return true;toast("Loading the law book...");const ok=await cloudRef("laws");if(ok){render()}else toast("The law book could not be loaded right now.");return ok}
 async function cloudStart(){
   USERS.splice(0,USERS.length,...USERS.filter(u=>u.id==="public"));
   await cloudPull(true);
-  try{const op=(await sbFetch("/rest/v1/docs?select=data&coll=eq.offpre&id=eq._"))[0];if(op&&op.data&&typeof op.data==="object")Object.assign(OFFPRE,op.data)}catch(e){console.warn("officer list not loaded",e.message)}
+  try{const op=(await sbFetch("/rest/v1/docs?select=data&coll=eq.offpre&id=eq._"))[0];if(op&&op.data&&typeof op.data==="object"){Object.assign(OFFPRE,op.data);REF.offpre=Object.keys(op.data).length}else REF.err="officer list: no row returned"}catch(e){REF.err="officer list: "+e.message;console.warn("officer list not loaded",e.message)}
   let a=(await sbFetch("/rest/v1/accounts?select=*&user_id=eq."+SBS.uid))[0];
   if(!a){const pid="u"+SBS.uid.replace(/-/g,"").slice(0,12);
     if(!S.profiles[pid])S.profiles[pid]={name:SBS.name||SBS.email.split("@")[0],degree:"EA",lodges:[],current:[],past:[],certs:[],bodies:[],contact:{email:C(SBS.email,"lodge"),phone:C("","private"),city:C("","members")}};
