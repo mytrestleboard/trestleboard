@@ -709,9 +709,11 @@ const pad=n=>String(n).padStart(2,"0");
 const ymd=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
 const TODAY=ymd(today.getFullYear(),today.getMonth(),today.getDate());
 function fresh(){return{user:"public",tab:"feed",sel:304,q:"",dist:"",mq:"",prof:"p0",edits:{},manual:{},follows:{},
-  roles:clone(DEFAULT_ROLES),profiles:clone(DEFAULT_PROFILES),events:clone(DEFAULT_EVENTS),log:[],
+  roles:clone(DEFAULT_ROLES),profiles:CLOUD?{}:clone(DEFAULT_PROFILES),events:CLOUD?[]:clone(DEFAULT_EVENTS),log:[],
   calY:today.getFullYear(),calM:today.getMonth(),calDay:null,calScope:"mine",posts:[],feedFilter:"all",postTo:"",web:{}}}
 let S=Object.assign(fresh(),load()||{});
+const LIVE_PID=/^u[0-9a-f]{12}$/;
+if(CLOUD){Object.keys(S.profiles||{}).forEach(id=>{if(!LIVE_PID.test(id))delete S.profiles[id]});S.events=(S.events||[]).filter(e=>!e.sample);S.posts=(S.posts||[]).filter(p=>!p.sample)}
 for(const k in DEFAULT_ROLES){const r=S.roles[k];if(!r)continue;for(const[p] of PERMS){if(r.perms[p]===undefined&&DEFAULT_ROLES[k].perms[p])r.perms[p]=1}}
 if(S.manualV!==1){S.manual={};S.manualV=1}
 let UI={editing:false,editProfile:false,adding:null,confirmDel:null};
@@ -2930,6 +2932,7 @@ async function cloudPull(first){let changed=false,more=true;
     more=rows.length>=1000;const all=clItems();
     rows.forEach(r=>{CL.last=r.updated_at>CL.last?r.updated_at:CL.last;const c=r.coll,id=String(r.id);if(!CL.snap[c])CL.snap[c]={};
       const cur=all[c]||{};if(!first&&cur[id]!==undefined&&cur[id]!==CL.snap[c][id])return;
+      if(c==="profiles"&&!LIVE_PID.test(id)){CL.snap[c][id]=r.deleted?undefined:JSON.stringify(r.data);return}
       if(CL_MAP.includes(c)){S[c]=S[c]||{};if(r.deleted){delete S[c][id];delete CL.snap[c][id]}else{S[c][id]=r.data;CL.snap[c][id]=JSON.stringify(r.data)}}
       else if(CL_ARR.includes(c)){S[c]=S[c]||[];const i=S[c].findIndex(x=>String(x.id)===id);if(r.deleted){if(i>=0)S[c].splice(i,1);delete CL.snap[c][id]}else{if(i>=0)S[c][i]=r.data;else S[c].push(r.data);CL.snap[c][id]=JSON.stringify(r.data)}}
       else if(CL_ONE.includes(c)||c==="roles"){S[c]=r.data;CL.snap[c]={_:JSON.stringify(r.data)}}
