@@ -415,7 +415,7 @@ body.out .login .btn{width:100%;margin-top:6px}
   <nav class="tabs" role="tablist" id="tabs"></nav>
   <section id="view"></section>
 </main>
-<div class="tl-foot"><i></i><span><b>One Trestle Board for all of Freemasonry.</b> · Pilot v0.3 · build Oct 18 6:52 PM</span></div>
+<div class="tl-foot"><i></i><span><b>One Trestle Board for all of Freemasonry.</b> · Pilot v0.3 · build Oct 18 6:58 PM</span></div>
 <div id="tl-splash" hidden><div class="in"><svg class="tlogo" id="spl-logo" viewBox="0 0 34 34" aria-hidden="true"></svg><b>My Trestle Board</b><small>One Trestle Board for all of Freemasonry.</small></div></div>
 <div class="toast" id="toast" hidden></div>
 
@@ -2045,7 +2045,7 @@ function mentorBlock(pid){
   const mm=canMentor(S.profiles[pid]);
   return `<div style="display:grid;gap:10px">${mm?`<h4 style="margin:0">${own?"Members I mentor":"Mentors"}</h4>
     ${mine.length?mine.map(x=>mentorRow(x.id,x.mentee,own)).join(""):empty(own?"You haven't listed anyone you mentor yet.":"No one listed.")}
-    ${own?mentorPick("mentee","Add a member I mentor",new Set(mine.map(x=>x.mentee))):""}`:(own?empty("Only Master Masons can mentor others. You can have a mentor below."):"")}
+    ${own?mentorPick("mentee","Add a student",new Set(mine.map(x=>x.mentee))):""}`:(own?empty("Only Master Masons can mentor others. You can have a mentor below."):"")}
     <h4 style="margin:${mm?"6px":"0"} 0 0">${own?"My mentor":"Mentored by"}</h4>
     ${mentors.length?mentors.map(x=>mentorRow(x.id,x.mentor,own)).join(""):empty(own?"No mentor listed for you.":"No one listed.")}
     ${own?mentorPick("mentor","Add my mentor (Master Masons only)",new Set(mentors.map(x=>x.mentor)),canMentor):""}</div>`}
