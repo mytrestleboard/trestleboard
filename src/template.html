@@ -9,6 +9,8 @@
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Trestle Board">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=Cormorant+Garamond:wght@600;700&family=Literata:wght@400;500&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -3061,3 +3063,39 @@ document.addEventListener("input",e=>{if(e.target.id==="pub-q"){PUB.q=e.target.v
 document.addEventListener("input",e=>{const t=e.target;if(t.id==="mon-q"){S.monQ=t.value;const r=document.getElementById("mon-res");if(r)r.innerHTML=monResults();return}if(t.classList&&t.classList.contains("poll-opt")&&DRAFT.poll)DRAFT.poll[+t.dataset.i]=t.value});
 </script>
 <script>if("serviceWorker" in navigator&&location.protocol==="https:"&&/mytrestleboard\.org$/.test(location.hostname))addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));</script>
+<style>
+#tb-inst{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:9999;max-width:520px;margin:0 auto;
+ background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.22);
+ padding:12px 14px;display:flex;gap:12px;align-items:center;font:15px/1.35 var(--f-body)}
+#tb-inst img{width:44px;height:44px;border-radius:10px;flex:none}
+#tb-inst .tx{flex:1;min-width:0}#tb-inst b{display:block;font-weight:600}#tb-inst small{color:var(--muted);font-size:13px}
+#tb-inst .go{background:var(--accent);color:var(--accent-fg);border:0;border-radius:9px;padding:9px 14px;font:600 14px var(--f-body);cursor:pointer;flex:none}
+#tb-inst .x{background:none;border:0;color:var(--muted);font-size:22px;line-height:1;padding:4px;cursor:pointer;flex:none}
+#tb-inst .ios-share{display:inline-block;width:15px;height:15px;vertical-align:-2px}
+</style>
+<script>
+// "Get the app" banner. Android/desktop Chrome: real install button. iPhone/iPad: shows the Share > Add to Home Screen steps.
+(function(){
+  var KEY="tb-inst-dismissed",DAYS=14;
+  function standalone(){return matchMedia("(display-mode: standalone)").matches||navigator.standalone===true}
+  function snoozed(){try{var t=+localStorage.getItem(KEY)||0;return Date.now()-t<DAYS*864e5}catch(e){return false}}
+  function snooze(){try{localStorage.setItem(KEY,String(Date.now()))}catch(e){}}
+  if(standalone()||new URLSearchParams(location.search).get("embed"))return;
+  var ua=navigator.userAgent,ios=/iPhone|iPad|iPod/.test(ua)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+  var deferred=null;
+  var shareIcon='<svg class="ios-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Share"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>';
+  function close(){var b=document.getElementById("tb-inst");if(b)b.remove()}
+  function show(html){if(document.getElementById("tb-inst"))return;var d=document.createElement("div");d.id="tb-inst";d.setAttribute("role","dialog");d.setAttribute("aria-label","Install My Trestle Board");
+    d.innerHTML='<img src="/icons/icon-192.png" alt="">'+html+'<button class="x" aria-label="Not now">&times;</button>';document.body.appendChild(d);
+    d.querySelector(".x").onclick=function(){snooze();close()};
+    var g=d.querySelector(".go");if(g)g.onclick=function(){if(!deferred)return;deferred.prompt();deferred.userChoice.then(function(r){if(r.outcome!=="accepted")snooze();deferred=null;close()})}}
+  window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();deferred=e;window.tbCanInstall=true;if(!snoozed())setTimeout(function(){show('<div class="tx"><b>Get the My Trestle Board app</b><small>Free. Opens full screen from your home screen.</small></div><button class="go">Install</button>')},2500)});
+  window.addEventListener("appinstalled",function(){close();snooze()});
+  if(ios&&!snoozed())addEventListener("load",function(){setTimeout(function(){show('<div class="tx"><b>Get the My Trestle Board app</b><small>In Safari, tap '+shareIcon+' Share, then <b style="display:inline">Add to Home Screen</b>.</small></div>')},2500)});
+  // lets other parts of the app re-open the banner (e.g. an "Install the app" link)
+  window.tbShowInstall=function(){try{localStorage.removeItem(KEY)}catch(e){}
+    if(deferred)show('<div class="tx"><b>Get the My Trestle Board app</b><small>Free. Opens full screen from your home screen.</small></div><button class="go">Install</button>');
+    else if(ios)show('<div class="tx"><b>Get the My Trestle Board app</b><small>In Safari, tap '+shareIcon+' Share, then <b style="display:inline">Add to Home Screen</b>.</small></div>');
+    else show('<div class="tx"><b>Get the My Trestle Board app</b><small>Open mytrestleboard.org in Chrome on Android, or Safari on iPhone, and install it from there.</small></div>')};
+})();
+</script>
