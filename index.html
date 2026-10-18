@@ -1960,7 +1960,8 @@ function accountView(){
     <p class="hint" style="margin:0 0 12px">Your photo, name, contact details and who can see them are all on your profile.</p>
     <div class="actions" style="margin:0"><button class="btn" type="button" data-act="go-profile-edit">Edit my profile and privacy</button></div></div>
   <div class="panel pad"><h3 class="sub">Account</h3>
-    <div class="acct-row" style="margin:0"><div><b>Login</b><div class="hint" style="margin:0">Password and sign-in options arrive with real accounts. This demo signs you in as a sample user.</div></div><button class="btn ghost small" type="button" disabled>Change password</button></div>
+    ${CLOUD?`<div class="acct-row" style="margin:0"><div><b>Grand Lodge card</b><div class="hint" style="margin:0">${CL.ver?`Verified ${esc(CL.ver.as_of||"")}${CL.ver.office?" · "+esc(CL.ver.office):""}. Re-check to refresh your lodges and standing.`:"Not verified yet."}</div></div><button class="btn ghost small" type="button" data-act="recheck-card">${CL.ver?"Re-check my card":"Verify my card"}</button></div>
+    <div id="recheck-box" style="display:none;margin:10px 0 0">${verifyInner()}</div>`:`<div class="acct-row" style="margin:0"><div><b>Login</b><div class="hint" style="margin:0">Password and sign-in options arrive with real accounts. This demo signs you in as a sample user.</div></div><button class="btn ghost small" type="button" disabled>Change password</button></div>`}
     <div class="acct-row" style="margin:12px 0 0"><div><b>Notifications</b><div class="hint" style="margin:0">Choose which Trestle Board posts and events email you.</div></div><span class="chip">Planned</span></div>
     <div class="acct-row" style="margin:12px 0 0"><div><b>Dues</b><div class="hint" style="margin:0">Pay dues online.</div></div><span class="chip">Planned</span></div>
     <div class="actions" style="margin-top:16px"><button class="btn ghost" type="button" data-act="signout">Sign out</button></div></div></div>`;
@@ -2470,6 +2471,7 @@ document.addEventListener("click",e=>{
     case "lm-up":LM="up";render();break;
     case "lm-in":LM="in";render();break;
     case "cloud-signup":cloudSignUp();break;
+    case "recheck-card":{const bx=document.getElementById("recheck-box");if(bx){bx.style.display=bx.style.display==="none"?"block":"none"}break}
     case "scan-card":scanCard();break;
     case "scan-stop":scanStop();break;
     case "signout":if(CLOUD)cloudSignOut();S.user="public";S.tab="feed";UI={editing:false,editProfile:false,adding:null,confirmDel:null};render();scrollTo(0,0);toast("Signed out");break;
@@ -2866,11 +2868,12 @@ const degFromCard=d=>/master/i.test(d)?"MM":/fellow/i.test(d)?"FC":/entered/i.te
 function applyVerification(){const v=CL.ver,p=myProfile();if(!v||!p)return;
   const lod=Array.isArray(v.lodges)?v.lodges:[];if(v.name)p.name=v.name;p.degree=degFromCard(v.degree||"");p.verified={asOf:v.as_of||"",at:v.verified_at||""};if(v.office)p.cardOffice=v.office;
   lod.forEach(x=>{const l=byNum(+x.no);if(!l)return;const ex=p.lodges.find(y=>y.n===l.n);if(!ex)p.lodges.push({n:l.n,since:"",approvedBy:"verified card",approvedAt:v.verified_at||""});else if(ex.pending){delete ex.pending;ex.approvedBy="verified card"}})}
-function verifyView(){return `<div class="panel login"><h2>Verify you are a Mason</h2><p class="sub">Your account is created. One last step: confirm your membership with your Grand Lodge of Texas card.</p>
+function verifyInner(){return `
   <div id="scanbox" style="display:grid;gap:8px;margin:0 0 12px"><button class="btn" type="button" data-act="scan-card">Scan my card with the camera</button><video id="scanvid" playsinline muted style="display:none;width:100%;border-radius:10px;background:#000"></video><button class="btn ghost" type="button" id="scanstop" data-act="scan-stop" style="display:none">Cancel scan</button></div>
   <p class="hint" style="margin:0 0 8px">Or scan the QR on your card with your phone's camera app, copy the web address of the page that opens, and paste it below.</p>
   <form id="verifyform" style="display:grid;gap:10px;text-align:left"><label>Link from your card<input type="text" id="vf-link" placeholder="https://tx.grandview.systems/public_verification?..." autocomplete="off"></label><button class="btn" type="submit">Verify my card</button><p class="hint" id="vf-msg" role="status" style="margin:0">We read only your name, degree, good standing and lodges from the Grand Lodge page, and we do not keep your photo.</p></form>
-  <p class="hint">No card? Ask your lodge Secretary to help, or sign out and come back later.</p><button class="linkbtn" type="button" data-act="signout">Sign out</button></div>`}
+  `}
+function verifyView(){return `<div class="panel login"><h2>Verify you are a Mason</h2><p class="sub">Your account is created. One last step: confirm your membership with your Grand Lodge of Texas card.</p>${verifyInner()}<p class="hint">No card? Ask your lodge Secretary to help, or sign out and come back later.</p><button class="linkbtn" type="button" data-act="signout">Sign out</button></div>`}
 let SCAN=null;
 function scanStop(){if(SCAN){SCAN.stop=true;try{SCAN.stream.getTracks().forEach(t=>t.stop())}catch(e){}SCAN=null}const v=document.getElementById("scanvid"),b=document.getElementById("scanstop");if(v){v.style.display="none";v.srcObject=null}if(b)b.style.display="none"}
 async function scanCard(){const msg=t=>{const m=document.getElementById("vf-msg");if(m)m.textContent=t};
@@ -2891,7 +2894,7 @@ async function cloudVerify(){const el=document.getElementById("vf-link"),link=(e
     const j=await r.json().catch(()=>({ok:false,reason:"The verification service did not answer. Please try again."}));
     if(!j.ok){msg(j.reason||"Could not verify that card.");if(j.debug)console.warn("verify debug",j.debug);return}
     CL.ver=(await sbFetch("/rest/v1/verifications?select=*&user_id=eq."+SBS.uid))[0]||{degree:j.card.degree,as_of:j.card.asOf,lodges:j.card.lodges,office:j.card.office,verified_at:new Date().toISOString()};
-    applyVerification();logIt("verified their Grand Lodge of Texas card");toast("Verified. Welcome, Brother.");S.tab="feed";render();scrollTo(0,0)
+    applyVerification();logIt("verified their Grand Lodge of Texas card");toast("Verified. Welcome, Brother.");if(S.tab!=="account")S.tab="feed";render();scrollTo(0,0)
   }catch(e){msg("Could not reach the verification service: "+e.message)}}
 function cloudSignOut(){SBS=null;sbSave();CL.on=false;CL.snap={};CL.last="1970-01-01T00:00:00+00:00";clearInterval(CL.poll)}
 if(CLOUD){document.body.classList.add("cloud");USERS.splice(0,USERS.length,...USERS.filter(u=>u.id==="public"));S.user="public"}
