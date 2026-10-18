@@ -919,7 +919,7 @@ function pubEvent(e,withDate){const src=pubSrc(e),k=evScope(e),isL=k==="gl"||k.s
   const addr=src?[src.addr,src.city,src.addr||src.city?"TX":"",src.zip].filter(Boolean).join(", "):"";
   const id=src?(isL?src.n:src.id):"";
   return `<details class="pubev"><summary>${withDate?`<span class="isub">${esc(prettyDate(e.date))}</span> · `:""}<b>${esc(fmtTime(e.time)||"All day")}</b> · ${esc(who)} · ${esc(e.title)}</summary><div class="pubev-in">
-    ${e.type&&e.type!==e.title?`<div class="hint" style="margin:0">${esc(e.type)}</div>`:""}${evAlso(e).length||e.spread?`<div class="hint" style="margin:0">${evAlsoLine(e).replace(/^<div class="meta">|<\/div>$/g,"")}</div>`:""}${e.notes?`<p style="margin:4px 0">${esc(e.notes)}</p>`:""}
+    ${e.type&&e.type!==e.title?`<div class="hint" style="margin:0">${esc(e.type)}</div>`:""}${evAlso(e).length||e.spread?`<div class="hint" style="margin:0">${evAlsoLine(e).replace(/^<div class="meta">|<\/div>$/g,"")}</div>`:""}${Object.keys(e.notesBy||{}).filter(k=>!PUB.sel||k===(PUB.selT==="l"?keyOf(+PUB.sel):"e:"+PUB.sel)).map(k=>`<div class="hint" style="margin:0"><b>${esc(scopeName(k))}:</b> ${esc(e.notesBy[k])}</div>`).join("")}${e.notes?`<p style="margin:4px 0">${esc(e.notes)}</p>`:""}
     ${src&&!src.gl?`<p style="margin:4px 0"><button class="linkbtn" type="button" data-act="pub-open" data-t="${isL?"l":"e"}" data-id="${esc(id)}" data-from="cal"><b>${esc(who)}</b>, full page and map</button></p>`:""}
     ${addr?`<p style="margin:4px 0">${esc(addr)} · <a href="#" data-ext="${esc(mapLink(addr))}">Open in Google Maps</a></p>`:""}
     <p style="margin:4px 0"><a href="#" data-ext="${esc(gcal(e))}">Add to Google Calendar</a></p></div></details>`}
@@ -1601,12 +1601,16 @@ function agendaItem(e){
   <div style="min-width:0"><div class="ev-t">${esc(e.title)} ${e.vis==="members"?`<span class="chip acc">Members only</span>`:""} ${e.sample?`<span class="chip">Sample</span>`:""}</div>
   <div class="meta">${fmtTime(e.time)} · ${k==="gl"||k.startsWith("l:")?`<button type="button" class="linkbtn" data-lodge-open="${e.n}">${esc(evWhere(e))}</button>`:`<button type="button" class="linkbtn" data-act="scope-open" data-k="${esc(k)}">${esc(evWhere(e))}</button>`} · ${esc(e.type)}</div>
   ${e.notes?`<div class="meta">${esc(e.notes)}</div>`:""}
+  ${evNotesBy(e)}
   ${evAlsoLine(e)}
-  <div class="acts">${rsvpHtml(e)}<a class="btn ghost small" href="${gcal(e)}" target="_blank" rel="noopener">Add to Google Calendar</a>${evAlsoActs(e)}
+  <div class="acts">${rsvpHtml(e)}<a class="btn ghost small" href="${gcal(e)}" target="_blank" rel="noopener">Add to Google Calendar</a>${evAlsoActs(e)}${evNoteForm(e)}
   ${del?(UI.confirmDel===e.id?`<button class="btn danger small" type="button" data-act="del-ev" data-id="${e.id}">Confirm delete</button><button class="btn ghost small" type="button" data-act="keep-ev">Keep</button>`:`<button class="btn ghost small" type="button" data-act="ask-del" data-id="${e.id}">Delete</button>`):""}</div></div></li>`;
 }
 function evAlsoLine(e){const x=evAlso(e);const sp=e.spread?(evScope(e).startsWith("d:")?"every lodge in the district":"every lodge in Texas"):"";if(!x.length&&!sp)return "";
   return `<div class="meta">Also on the calendar of ${[...x.map(k=>{const n=scopeName(k);return n===k?bodyLabel(k):n}),sp].filter(Boolean).join(", ")}</div>`}
+function evNotesBy(e){const nb=e.notesBy||{};const ks=Object.keys(nb).filter(k=>nb[k]);if(!ks.length)return "";return ks.map(k=>`<div class="meta"><b>${esc(scopeName(k))}:</b> ${esc(nb[k])}</div>`).join("")}
+function evNoteForm(e){if(e.auto||!signedIn())return "";const ms=manageableScopes().filter(x=>evOn(e,x.k));if(!ms.length)return "";const open=UI.noteEv===e.id;if(!open)return `<button class="btn ghost small" type="button" data-act="ev-note" data-id="${e.id}">${ms.some(x=>(e.notesBy||{})[x.k])?"Edit our note":"Add our note"}</button>`;
+  const k0=ms[0].k;return `<form class="inline-form" data-evnote="${e.id}" style="display:grid;gap:6px;flex:1 0 100%;margin-top:6px"><label class="hint" style="margin:0">Our note on this event <span class="hint">(shows only on the calendar you pick, for things like where to meet or carpool times)</span></label><div style="display:flex;gap:6px;flex-wrap:wrap">${ms.length>1?`<select name="k">${ms.map(x=>`<option value="${esc(x.k)}">${esc(x.l)}</option>`).join("")}</select>`:`<input type="hidden" name="k" value="${esc(k0)}">`}<input type="text" name="t" style="flex:1;min-width:180px" maxlength="200" placeholder="e.g. Carpool from the lodge at 6:30" value="${esc((e.notesBy||{})[k0]||"")}"><button class="btn small" type="submit">Save</button><button class="btn ghost small" type="button" data-act="ev-note-cancel">Cancel</button></div></form>`}
 function evAlsoActs(e){if(e.auto||!signedIn())return "";const ms=manageableScopes(),add=ms.filter(x=>!evOn(e,x.k)),rm=ms.filter(x=>evAlso(e).includes(x.k));let h="";
   if(add.length&&add.length<=2)h+=add.map(x=>`<button class="btn ghost small" type="button" data-act="ev-also" data-id="${e.id}" data-sk="${esc(x.k)}">Add to ${esc(x.l)}</button>`).join("");
   else if(add.length)h+=`<select class="ev-also-sel small" data-id="${e.id}" aria-label="Add to a calendar"><option value="">Add to our calendar…</option>${add.map(x=>`<option value="${esc(x.k)}">${esc(x.l)}</option>`).join("")}</select>`;
@@ -2536,6 +2540,8 @@ document.addEventListener("click",e=>{
     case "scan-card":scanCard();break;
     case "post-also":{const p=S.posts.find(x=>x.id===t.dataset.id);if(p&&boardsICanPost().some(b=>bKey(b)===t.dataset.k)&&pLink(p,t.dataset.k)){toast(`Shared to ${bName(bFromKey(t.dataset.k))}`);render()}break}
     case "post-unalso":{const p=S.posts.find(x=>x.id===t.dataset.id);if(p&&boardsICanPost().some(b=>bKey(b)===t.dataset.k)&&pUnlink(p,t.dataset.k)){toast("Removed");render()}break}
+    case "ev-note":UI.noteEv=t.dataset.id;render();break;
+    case "ev-note-cancel":UI.noteEv=null;render();break;
     case "ev-also":{const e=S.events.find(x=>x.id===t.dataset.id);if(e&&canManageScopeKey(t.dataset.sk)&&evLink(e,t.dataset.sk)){toast(`Added to ${scopeName(t.dataset.sk)}'s calendar`);render()}break}
     case "ev-unalso":{const e=S.events.find(x=>x.id===t.dataset.id);if(e&&canManageScopeKey(t.dataset.sk)&&evUnlink(e,t.dataset.sk)){toast(`Removed from ${scopeName(t.dataset.sk)}'s calendar`);render()}break}
     case "ev-merge":{const a=S.events.find(x=>x.id===t.dataset.id),b=S.events.find(x=>x.id===t.dataset.into);if(a&&b&&evCanEdit(a)&&evMerge(a,b)){toast("Merged into one event");render()}break}
@@ -2730,6 +2736,7 @@ document.addEventListener("submit",e=>{
     S.posts.push({id:"p"+Date.now().toString(36)+"e",by:S.user,board:scopeBoard(sk),text:`New event: ${ev.title}`,at:new Date().toISOString(),evId:ev.id});
     UI.adding=null; toast(`Added to ${evWhere(ev)}'s calendar and Trestle Board`); render(); return;
   }
+  if(f.dataset.evnote){const e=S.events.find(x=>x.id===f.dataset.evnote),k=f.elements.k.value,txt=(f.elements.t.value||"").trim();if(!e||!canManageScopeKey(k)||!evOn(e,k))return;e.notesBy=e.notesBy||{};if(txt)e.notesBy[k]=txt;else delete e.notesBy[k];if(!Object.keys(e.notesBy).length)delete e.notesBy;audit(k,`${txt?"added a note to":"removed the note from"} "${e.title}" (${e.date})`);UI.noteEv=null;toast(txt?"Note saved":"Note removed");render();return}
   if(f.dataset.cmform){const po=S.posts.find(x=>x.id===f.dataset.cmform);const txt=(f.elements.c.value||"").trim();if(!po||!txt||!canSeePost(po))return;
     (po.comments||(po.comments=[])).push({id:"c"+Date.now().toString(36),by:S.user,text:txt,at:new Date().toISOString()});S.openCm=S.openCm||{};S.openCm[po.id]=true;render();document.querySelector(`[data-cmform="${po.id}"] input`)?.focus();return}
   if(f.dataset.msgform){const c=S.convos.find(x=>x.id===f.dataset.msgform),txt=(f.elements.m.value||"").trim();if(!c||!txt||!c.members.includes(meP()))return;
