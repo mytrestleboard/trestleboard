@@ -256,7 +256,7 @@ table.matrix thead th{font-size:12px;text-transform:uppercase;letter-spacing:.06
 .profile-head{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
 .cloud #viewas,.cloud #reset,.cloud .demo-note{display:none!important}
 .logo{display:block;object-fit:contain;border-radius:12px;background:var(--surface);border:1px solid var(--line);padding:4px;flex:none}
-.logo.hero{width:76px;height:76px}.logo.ph{display:grid;place-items:center;border-style:dashed;color:var(--muted);font-size:12px;padding:0}
+.logo.lg{width:76px;height:76px}.logo.ph{display:grid;place-items:center;border-style:dashed;color:var(--muted);font-size:12px;padding:0}
 .logo-hd{display:grid;gap:4px;justify-items:center;flex:none}
 .logo-row{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
 .num.logo-num{display:grid;place-items:center;justify-self:end}.num.logo-num img{width:38px;height:38px;object-fit:contain;border-radius:6px;background:var(--surface)}
@@ -1086,7 +1086,7 @@ function bodyDetail(){
     ${b.phone?`<dt>Phone</dt><dd><a href="tel:${esc(b.phone.replace(/[^0-9+]/g,""))}">${esc(b.phone)}</a></dd>`:""}
     ${b.email?`<dt>Email</dt><dd><a href="mailto:${esc(b.email)}">${esc(b.email)}</a></dd>`:""}
     ${web?`<dt>Website</dt><dd><a href="#" data-ext="${esc(web)}">${esc(b.web)}</a></dd>`:""}</dl>
-  ${srx}${entBoardSection(b,fol)}${subgroupList("e:"+b.id)}${bodyOfficers("e:"+b.id)}${entRosterBlock(b)}${pendSection("e:"+b.id,bodyTitle(b))}<div class="section"><h3 class="sub">Calendar</h3>${calendar({keys:[evKeyOfScope("e:"+b.id)],scope:"e:"+b.id})}</div>
+  ${mapBlock(b)}${srx}${entBoardSection(b,fol)}${subgroupList("e:"+b.id)}${bodyOfficers("e:"+b.id)}${entRosterBlock(b)}${pendSection("e:"+b.id,bodyTitle(b))}<div class="section"><h3 class="sub">Calendar</h3>${calendar({keys:[evKeyOfScope("e:"+b.id)],scope:"e:"+b.id})}</div>
   <p class="hint" style="margin-top:16px">Listing source: ${esc(src)}. Names and cities were copied from a web listing and may be out of date. Please report anything wrong.</p>`}
 function applyBodyInfo(){
   const all=[...BODIES,...SRX,...YRX];
@@ -1095,9 +1095,9 @@ function applyBodyInfo(){
 const logoThumb=(url,txt)=>url?`<span class="num logo-num"><img src="${url}" alt="" loading="lazy"></span>`:`<span class="num">${txt}</span>`;
 const logoCan=(kind,id)=>kind==="e"?canManageScope("e:"+id):(()=>{const l=byNum(id);return !!l&&canEdit(l)})();
 function logoHd(kind,id,url){const can=signedIn()&&logoCan(kind,id);if(!url&&!can)return "";
-  return `<div class="logo-hd">${url?`<img class="logo hero" src="${url}" alt="Logo">`:`<span class="logo hero ph">Logo</span>`}${can?`<label class="linkbtn" style="cursor:pointer;font-size:12px">${url?"Change logo":"Add logo"}<input type="file" class="logo-file" data-lk="${kind}" data-lid="${esc(id)}" accept="image/*" hidden></label>`:""}</div>`}
+  return `<div class="logo-hd">${url?`<img class="logo lg" src="${url}" alt="Logo">`:`<span class="logo lg ph">Logo</span>`}${can?`<label class="linkbtn" style="cursor:pointer;font-size:12px">${url?"Change logo":"Add logo"}<input type="file" class="logo-file" data-lk="${kind}" data-lid="${esc(id)}" accept="image/*" hidden></label>`:""}</div>`}
 function logoBlock(kind,id){const url=(kind==="e"?entById(id):byNum(id)||{}).logo||"";
-  return `<div class="logo-edit" style="display:flex;gap:14px;align-items:center;margin-bottom:6px">${url?`<img class="logo hero" src="${url}" alt="Logo">`:`<span class="logo hero ph">Logo</span>`}<div style="display:grid;gap:6px;justify-items:start"><b>Logo or photo</b><label class="btn ghost small" style="cursor:pointer">${url?"Change logo":"Upload logo"}<input type="file" class="logo-file" data-lk="${kind}" data-lid="${esc(id)}" accept="image/*" hidden></label>${url?`<button class="linkbtn" type="button" data-act="logo-remove" data-lk="${kind}" data-lid="${esc(id)}">Remove logo</button>`:""}<span class="hint" style="margin:0">A crest, a square and compass, or a photo of the building. It shows on the page and in the lists.</span></div></div>`}
+  return `<div class="logo-edit" style="display:flex;gap:14px;align-items:center;margin-bottom:6px">${url?`<img class="logo lg" src="${url}" alt="Logo">`:`<span class="logo lg ph">Logo</span>`}<div style="display:grid;gap:6px;justify-items:start"><b>Logo or photo</b><label class="btn ghost small" style="cursor:pointer">${url?"Change logo":"Upload logo"}<input type="file" class="logo-file" data-lk="${kind}" data-lid="${esc(id)}" accept="image/*" hidden></label>${url?`<button class="linkbtn" type="button" data-act="logo-remove" data-lk="${kind}" data-lid="${esc(id)}">Remove logo</button>`:""}<span class="hint" style="margin:0">A crest, a square and compass, or a photo of the building. It shows on the page and in the lists.</span></div></div>`}
 function setLogo(kind,id,url){
   if(!logoCan(kind,id))return;
   if(kind==="e"){(S.bodyInfo||(S.bodyInfo={}))[id]=Object.assign(S.bodyInfo[id]||{},{logo:url});audit("e:"+id,url?"updated the logo":"removed the logo");logIt((url?"updated":"removed")+" the logo of "+bodyTitle(entById(id)))}
@@ -1170,11 +1170,20 @@ function bodiesView(){
 
 /* ---------- directory ---------- */
 function filtered(){const q=S.q.trim().toLowerCase();return L.filter(l=>(!S.dist||l.d===S.dist)&&(!q||`${l.n} ${l.name} ${l.city} ${l.county}`.toLowerCase().includes(q)))}
+const sameName=(a,b)=>{const f=n=>normName(n).split(" ").filter(w=>w.length>1).join(" ");return !!f(a)&&f(a)===f(b)};
+const listedOfficer=(ref,title)=>ref&&ref.t==="l"&&byNum(ref.id)?manualOf(byNum(ref.id),title):((S.listedOff||{})[ref&&ref.id]||{})[title]||"";
+const nameMatches=()=>{const pr=myProfile();if(!pr||!signedIn()||pr.sample)return [];const out=[];if(!normName(pr.name))return out;
+  L.forEach(l=>{if(l.gl)return;OFFICES.forEach(o=>{const nm=manualOf(l,o);if(nm&&sameName(nm,pr.name)&&!holds(pr,"l:"+l.n).includes(o)&&!(pr.claims||[]).some(c=>c.key==="l:"+l.n&&c.title===o))out.push({l,o})})});return out};
+function nameClaim(n,o){const pr=myProfile(),l=byNum(+n);if(!pr||!l)return;const key="l:"+l.n,now=new Date().toISOString(),bv=lname(l);
+  if(!pr.lodges.some(x=>x.n===l.n&&!x.pending)){pr.lodges=pr.lodges.filter(x=>x.n!==l.n);pr.lodges.push({n:l.n,since:String(new Date().getFullYear()),approvedBy:"name match",approvedAt:now})}
+  pr.current.push({title:o,body:bv,ref:{t:"l",id:l.n},year:""});logIt(`joined ${bv} as ${o} (name matched the officer list)`);audit(key,`${pr.name} joined as ${o} (name matched the officer list, approved automatically)`);toast(`You are now ${o} of ${bv}.`);render()}
+function nameBanner(){const m=nameMatches();if(!m.length)return "";
+  return `<div class="panel pad" style="margin-bottom:20px;display:grid;gap:10px"><h3 class="sub" style="margin:0">Is this you?</h3><p class="hint" style="margin:0">Your name matches the officer list. Confirm and you will be able to manage the lodge.</p>${m.map(x=>`<div style="display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center"><span>${esc(x.o)}, ${esc(lname(x.l))}</span><button type="button" class="btn small" data-act="name-claim" data-n="${x.l.n}" data-o="${esc(x.o)}">Yes, that's me</button></div>`).join("")}</div>`}
 function myLodgesStrip(){
   if(!signedIn()) return "";
   const mem=L.filter(isMember), fol=L.filter(l=>!isMember(l)&&following(l)), editable=L.filter(canEdit).length;
   const btns=list=>`<div style="display:flex;flex-wrap:wrap;gap:8px">${list.map(l=>`<button type="button" class="btn ${S.sel===l.n?"":"ghost"} small" data-lodge="${l.n}">${esc(lname(l))}</button>`).join("")}</div>`;
-  return `<div class="panel pad" style="margin-bottom:20px;display:grid;gap:14px">
+  return nameBanner()+`<div class="panel pad" style="margin-bottom:20px;display:grid;gap:14px">
     <div style="display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between">
       <h3 class="sub" style="margin:0">My Lodges</h3>
       <div style="display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center"><span class="hint" style="margin:0">${esc(role().label)} · You can edit ${editable} ${editable===1?"lodge":"lodges"}${me().profile?` · <button class="linkbtn" type="button" data-person="${me().profile}">View my profile</button>`:""}</span><button class="btn small" type="button" data-act="dir-find">Find a lodge</button></div></div>
@@ -1243,8 +1252,15 @@ function dupHits(name,email,exLodge,exApp,exPid){
     pp.lodges.filter(x=>x.n&&!x.pending&&x.n!==exLodge&&!(byNum(x.n)||{}).gl).forEach(x=>out.push({lodge:x.n,what:DTITLE[degP(pp)]||"Member",date:"",status:""}))});
   return out}
 const dupText=h=>{const lo=byNum(h.lodge);return `${lo?lname(lo):"Lodge "+h.lodge}: ${h.what}${h.date?", received "+h.date:""}${h.status?", "+h.status:""}`};
+/* ---------- Map: satellite view of the meeting place (Google Maps embed, no key needed) ---------- */
+const mapQ=e=>{const a=(e.mapAddr||"").trim()||[e.addr,e.city,e.city||e.addr?"TX":"",e.zip].filter(Boolean).join(", ");return e.addr||e.mapAddr?a:""};
+const mapSrc=q=>"https://maps.google.com/maps?q="+encodeURIComponent(q)+"&t=k&z=18&output="+"embed";
+const mapLink=q=>"https://www.google.com/maps/search/?api="+"1&query="+encodeURIComponent(q);
+function mapBlock(e){
+  const q=mapQ(e);if(!q||e.mapOff)return "";
+  return `<div class="section"><h3 class="sub">Location map</h3><div style="border:1px solid var(--line);border-radius:10px;overflow:hidden;max-width:720px"><iframe src="${esc(mapSrc(q))}" title="Satellite map of ${esc(q)}" style="width:100%;height:320px;border:0;display:block" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div><p class="hint" style="margin:6px 0 0"><a href="#" data-ext="${esc(mapLink(q))}">Open in Google Maps</a> for directions. Use the small picture in the corner of the map to switch between satellite and street view.</p></div>`}
 /* ---------- Website feed: lets a lodge or body show its public posts and events on its own website ---------- */
-const EMBED_BASE="https://trucktraders.github.io/freemasonry/";
+const EMBED_BASE="https://mytrestleboard.org/";
 const webOn=k=>!!((S.web||{})[k]&&S.web[k].on);
 const embedUrl=(f,k,base)=>(base||EMBED_BASE)+"?embed"+String.fromCharCode(61)+f+"&scope"+String.fromCharCode(61)+encodeURIComponent(k);
 const embedCode=(f,k,label)=>`<iframe src="${embedUrl(f,k)}" title="${label} ${f==="cal"?"calendar":"news"}" style="width:100%;border:0;min-height:520px" loading="lazy"></iframe>`;
@@ -1372,6 +1388,7 @@ function lodgeDetail(){
     ${l.web?`<dt>Website</dt><dd><a href="#" data-ext="${esc(/^https?:/i.test(l.web)?l.web:"https://"+l.web)}">${esc(l.web)}</a></dd>`:""}`}
     <dt>District</dt><dd>${esc(l.d)}</dd>
   </dl>
+  ${mapBlock(l)}
   <div class="section"><h3 class="sub">Calendar</h3>${lodgeCal(l)}</div>
   ${bylawsBlock(l)}${l.gl?"":`<div class="section"><h3 class="sub">Officers</h3>${canSeePrivate(l)?officerList(l):`<p class="locked">🔒 Only members of ${esc(lname(l))} and the district officers over it can see the officers.</p>`}</div>`}
   ${l.gl?"":pendSection("l:"+l.n,lname(l))}
@@ -1654,6 +1671,87 @@ function bylawsView(){
   return `<div class="stack">${back}<div><h2 class="title" style="margin:0 0 6px">Lodge bylaws</h2><p class="hint" style="margin:0">Bylaws for the lodges you belong to. Each lodge's secretary, or anyone who can edit the lodge page, uploads them. You only see lodges you are a member of.</p></div>
   ${ls.length?ls.map(l=>`<div class="panel pad" style="display:grid;gap:8px"><button type="button" class="linkbtn" data-lodge-open="${l.n}" style="justify-self:start;font-weight:600">${esc(lname(l))}</button>${bylawRow(l)}</div>`).join(""):`<div class="panel empty">You aren't a member of a lodge on this site yet, so there are no bylaws to show.</div>`}
   <div class="hint">Demo note: for now an uploaded PDF is stored in this browser only. Sharing it with the rest of the lodge needs the real login and storage.</div></div>`}
+/* ---------- forms library (links and files; details in S.forms, files in this browser's IndexedDB) ---------- */
+const FCATS=["Petitions and applications","Affiliation, reinstatement and demits","Reports and returns","Lodge business","Other"];
+const FMAX=15*1024*1024;
+const normT=t=>String(t||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
+const fLodge=s=>s==="gl"?null:byNum(+String(s).slice(2));
+const fScopeName=s=>s==="gl"?"Grand Lodge of Texas (statewide)":(fLodge(s)?lname(fLodge(s)):"Unknown lodge");
+const canFormScope=s=>signedIn()&&(s==="gl"?can("manageRoles"):(()=>{const l=fLodge(s);return !!l&&canEdit(l)})());
+const formScopesICan=()=>[...(can("manageRoles")?["gl"]:[]),...L.filter(l=>!l.gl&&canEdit(l)).sort((a,b)=>a.n-b.n).map(l=>"l:"+l.n)];
+const formSee=f=>f.scope==="gl"||(signedIn()&&(()=>{const l=fLodge(f.scope);return !!l&&(isMember(l)||canEdit(l))})());
+const fUrl=u=>{u=String(u||"").trim();return u&&!/^https?:/i.test(u)?"https://"+u:u};
+async function fHash(f){const h=await crypto.subtle.digest("SHA-256",await f.arrayBuffer());return[...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+function formDup(d,selfId){
+  return formsAll().find(o=>o.id!==selfId&&o.scope===d.scope&&((d.title&&normT(o.title)===normT(d.title))||(d.url&&o.kind==="link"&&fUrl(o.url).toLowerCase()===d.url.toLowerCase())||(d.hash&&o.kind==="file"&&o.file&&o.file.hash===d.hash)))}
+const formsAll=()=>Object.values(S.forms||{});
+function formRow(f){
+  const ed=canFormScope(f.scope),del=UI.formDel===f.id,hist=UI.formHist===f.id;
+  const what=f.kind==="link"?`Link to the official form`:`${esc(f.file.name)} · ${fsize(f.file.size)}`;
+  return `<div class="panel pad" style="display:grid;gap:6px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap"><span style="min-width:0;flex:1 1 260px"><b>${esc(f.title)}</b>${f.desc?`<br><span class="isub">${esc(f.desc)}</span>`:""}<br><span class="isub">${f.rev?esc(f.rev)+" · ":""}Version ${f.v} · ${what} · updated ${esc((f.at||"").slice(0,10))}${f.by?" by "+esc(f.by):""}</span></span>
+    <span style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="btn small" type="button" data-act="form-open" data-id="${esc(f.id)}" data-v="${f.v}">${f.kind==="link"?"Open form":"Open file"}</button>${ed?`<button class="btn ghost small" type="button" data-act="form-replace" data-id="${esc(f.id)}">Replace</button><button class="btn ghost small" type="button" data-act="form-edit" data-id="${esc(f.id)}">Edit details</button>${(f.hist||[]).length?`<button class="btn ghost small" type="button" data-act="form-hist" data-id="${esc(f.id)}">${hist?"Hide":"Older versions ("+f.hist.length+")"}</button>`:""}${del?`<button class="btn danger small" type="button" data-act="form-del-yes" data-id="${esc(f.id)}">Confirm remove</button><button class="btn ghost small" type="button" data-act="form-del-no">Keep</button>`:`<button class="btn ghost small" type="button" data-act="form-del" data-id="${esc(f.id)}">Remove</button>`}`:""}</span></div>
+  ${ed&&hist?`<ul class="resume" style="margin:4px 0 0">${(f.hist||[]).slice().reverse().map(h=>`<li><span class="what" style="min-width:110px">Version ${h.v}</span><span>${h.kind==="link"?"Link":esc(h.file.name)} · replaced ${esc((h.replaced||"").slice(0,10))}${h.by?" · added by "+esc(h.by):""} <button class="linkbtn" type="button" data-act="form-open" data-id="${esc(f.id)}" data-v="${h.v}">Open</button></span></li>`).join("")}</ul>`:""}</div>`}
+function formEditor(){
+  const E=UI.formEd;if(!E)return "";
+  const cur=E.id?(S.forms||{})[E.id]:null,d=E.d||{},rep=E.mode==="replace",scopes=formScopesICan();
+  const kind=d.kind||(cur?cur.kind:"file");
+  return `<form id="formform" class="panel pad" style="display:grid;gap:10px;max-width:640px"><b>${rep?"Replace "+esc(cur.title):cur?"Edit details":"Add a form"}</b>
+  ${E.err?`<div class="panel pad" style="border-color:var(--bad,#c0504d)"><b>Not saved.</b> ${E.err}</div>`:""}
+  ${rep?`<p class="hint" style="margin:0">The version on file now (Version ${cur.v}) is kept under "Older versions" so you can see what changed.</p>`:""}
+  ${!cur?`<label>Whose form is this<select id="fm-scope">${scopes.map(s=>`<option value="${esc(s)}" ${(d.scope||E.scope)===s?"selected":""}>${esc(fScopeName(s))}</option>`).join("")}</select></label>`:""}
+  ${rep?"":`<label>Form name<input id="fm-title" value="${esc(d.title!=null?d.title:cur?cur.title:"")}" placeholder="Petition for the Degrees" maxlength="120"></label>
+  <label>Category<select id="fm-cat">${FCATS.map(c=>`<option ${(d.cat||(cur&&cur.cat)||FCATS[0])===c?"selected":""}>${esc(c)}</option>`).join("")}</select></label>
+  <label>What it is for (optional)<input id="fm-desc" value="${esc(d.desc!=null?d.desc:cur?cur.desc||"":"")}" maxlength="200"></label>`}
+  ${cur&&!rep?"":`<label>Revision or date printed on the form (optional)<input id="fm-rev" value="${esc(d.rev!=null?d.rev:cur?cur.rev||"":"")}" placeholder="Rev. 03/2025" maxlength="40"></label>
+  <label>How people get it<select id="fm-kind"><option value="file" ${kind==="file"?"selected":""}>Upload a file (PDF, Word, Excel or picture)</option><option value="link" ${kind==="link"?"selected":""}>Link to the official form on another website</option></select></label>
+  <label id="fm-file-w">File (up to 15 MB)<input id="fm-file" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,application/pdf"></label>
+  <label id="fm-url-w">Web address<input id="fm-url" value="${esc(d.url||(cur&&cur.kind==="link"?cur.url:""))}" placeholder="https://..."></label>
+  <p class="hint" style="margin:0">A link always shows the official, current form, so it can't go out of date. Upload a file only when there's no page to link to.</p>`}
+  <div class="actions" style="margin:0"><button class="btn" type="submit">${rep?"Replace":cur?"Save":"Add form"}</button><button class="btn ghost" type="button" data-act="form-cancel">Cancel</button></div></form>`}
+function formsBlock(){
+  if(!resOk("MM"))return "";
+  const all=formsAll().filter(formSee),gl=all.filter(f=>f.scope==="gl"),lod=all.filter(f=>f.scope!=="gl");
+  const grp=(arr)=>FCATS.map(c=>{const a=arr.filter(f=>(f.cat||"Other")===c).sort((x,y)=>x.title.localeCompare(y.title));return a.length?`<div style="display:grid;gap:8px"><b class="isub" style="text-transform:uppercase;letter-spacing:.06em">${esc(c)}</b>${a.map(formRow).join("")}</div>`:""}).join("");
+  const lscopes=[...new Set(lod.map(f=>f.scope))].sort((a,b)=>+a.slice(2)-+b.slice(2));
+  const can1=signedIn()&&formScopesICan().length>0;
+  return `<div id="res-forms" class="panel pad" style="scroll-margin-top:12px;display:grid;gap:12px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><h3 class="sub" style="margin:0">Forms</h3>${can1&&!UI.formEd?`<button class="btn small" type="button" data-act="form-add">Add a form</button>`:""}</div>
+  <p class="hint" style="margin:0">Official Grand Lodge forms, plus forms your own lodge keeps for its members. Where we can, a form links to the official page so it is always the current one. Only people allowed to manage a form's owner can add, replace or remove it.</p>
+  ${formEditor()}
+  <div style="display:grid;gap:12px"><b>Grand Lodge of Texas forms</b>${gl.length?grp(gl):`<p class="hint" style="margin:0">No statewide forms have been added yet.</p>`}</div>
+  ${lscopes.map(s=>`<div style="display:grid;gap:12px"><b>${esc(fScopeName(s))}</b>${grp(lod.filter(f=>f.scope===s))}</div>`).join("")}
+  <p class="hint" style="margin:0">Demo note: an uploaded file is stored in this browser only. Sharing it with other people needs the real login and file storage.</p></div>`}
+async function formSave(){
+  const E=UI.formEd;if(!E)return;const val=id=>(document.getElementById(id)?.value||"").trim(),rep=E.mode==="replace";
+  const cur=E.id?(S.forms||{})[E.id]:null;
+  const d={scope:cur?cur.scope:val("fm-scope")||E.scope,title:rep?cur.title:val("fm-title"),cat:rep?cur.cat:val("fm-cat"),desc:rep?cur.desc:val("fm-desc"),rev:document.getElementById("fm-rev")?val("fm-rev"):(cur?cur.rev:""),kind:document.getElementById("fm-kind")?val("fm-kind"):(cur?cur.kind:"file"),url:fUrl(val("fm-url"))};
+  const fail=m=>{E.err=m;E.d=d;render()};
+  if(!canFormScope(d.scope)){fail("You can't manage forms for that owner.");return}
+  if(!d.title){fail("Give the form a name.");return}
+  const detailsOnly=!!cur&&!rep;
+  let file=null;
+  if(!detailsOnly){
+    if(d.kind==="link"){if(!/^https?:\/\/[^ ]+\.[^ ]+/i.test(d.url)){fail("Enter the web address of the form, starting with https://");return}}
+    else{file=document.getElementById("fm-file")?.files[0];
+      if(!file&&!(cur&&cur.kind==="file"&&rep===false)){fail("Choose the file to upload.");return}
+      if(file.size>FMAX){fail("That file is over 15 MB.");return}
+      if(!/\.(pdf|docx?|xlsx?|png|jpe?g)$/i.test(file.name)){fail("Please choose a PDF, Word, Excel or picture file.");return}
+      d.hash=await fHash(file)}}
+  const dup=formDup(d,cur&&cur.id);
+  if(dup){fail(`<b>${esc(dup.title)}</b> is already on file${dup.scope!==d.scope?"":" for this owner"}. To update it, use <b>Replace</b> on that form and don't add it again.`);return}
+  if(rep&&cur){if(d.kind==="link"&&cur.kind==="link"&&fUrl(cur.url).toLowerCase()===d.url.toLowerCase()){fail("That is the same link already on file.");return}if(file&&cur.kind==="file"&&cur.file.hash===d.hash){fail("That is the same file already on file.");return}}
+  const by=(myProfile()||{}).name||me().label,now=new Date().toISOString(),S2=S.forms||(S.forms={});
+  try{
+    if(!cur){const id="f"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),nf={id,scope:d.scope,title:d.title,cat:d.cat,desc:d.desc,rev:d.rev,kind:d.kind,url:d.kind==="link"?d.url:"",file:null,v:1,at:now,by,hist:[]};
+      if(file){await fput(`form:${id}:1`,file);nf.file={name:file.name,size:file.size,hash:d.hash}}
+      S2[id]=nf;logIt(`added the form "${nf.title}" for ${fScopeName(nf.scope)}`);audit(nf.scope,`added the form "${nf.title}"`+(file?` (${file.name})`:" (link)"))}
+    else if(rep){
+      const nv=cur.v+1;if(file)await fput(`form:${cur.id}:${nv}`,file);
+      cur.hist=(cur.hist||[]).concat([{v:cur.v,kind:cur.kind,url:cur.url,file:cur.file,rev:cur.rev,at:cur.at,by:cur.by,replaced:now}]);
+      cur.v=nv;cur.kind=d.kind;cur.url=d.kind==="link"?d.url:"";cur.file=file?{name:file.name,size:file.size,hash:d.hash}:null;cur.rev=d.rev;cur.at=now;cur.by=by;
+      logIt(`replaced the form "${cur.title}" (now version ${nv})`);audit(cur.scope,`replaced the form "${cur.title}" (now version ${nv})`)}
+    else{Object.assign(cur,{title:d.title,cat:d.cat,desc:d.desc});logIt(`edited the details of the form "${cur.title}"`);audit(cur.scope,`edited the details of the form "${cur.title}"`)}
+  }catch(_){fail("This browser wouldn't store the file.");return}
+  UI.formEd=null;toast(rep?"Form replaced":cur?"Saved":"Form added");render()}
 const lawText=x=>esc(x).replace(/\b(Articles?|Art\.)\s+(\d{1,3}[a-z]?)\b/g,(m,w,n)=>LAWS.arts.some(a=>a.n===n)?`<button type="button" class="linkbtn" data-act="law-open" data-n="${n}">${m}</button>`:m);
 function lawsView(){
   const back=`<div class="actions" style="margin:0"><button class="btn ghost small" type="button" data-act="law-back">← ${S.lawOpen?"All articles":"Resources"}</button></div>`;
@@ -2123,7 +2221,6 @@ const RES0=[
     ["Grand Master's decisions and edicts","Rulings of the Grand Master, "+(LAWS.arts.reduce((n,a)=>n+(a.d||[]).length,0))+" in all through the 2025 revision, each linked to the article it interprets. Newer ones are not in the book yet.",LAWS.arts.length?"app:decisions":null,"Open decisions"],
     ["Lodge bylaws","Bylaws for the lodges you belong to, uploaded by each lodge. Members only.","app:bylaws","Open bylaws"]]},
   {sec:"Forms and officer guides",min:"MM",items:[
-    ["Grand Lodge forms","Petitions, affiliation, reinstatement, demits and other official forms."],
     ["Officer handbooks","What each station does, from Tiler to Worshipful Master."],
     ["Secretary and Treasurer guides","Reports, dues, returns and year-end deadlines."]]},
   {sec:"Education",items:[
@@ -2143,6 +2240,7 @@ const resItems=g=>g.items.filter(it=>resOk(it[4]||g.min));
 function resView(){
   return `<div class="stack"><div><h2 class="title" style="margin:0 0 6px">Resources</h2>
     <p class="hint" style="margin:0">Study materials and Grand Lodge resources for Texas Masons.${signedIn()?"":" Sign in to open them once they're added."}</p></div>
+    ${formsBlock()}
     ${RES.map((g,gi)=>resItems(g).length?`<div id="res-${gi}" class="${g.sec==="Texas Monitor"?"panel pad":""}" style="scroll-margin-top:12px"><h3 class="sub" style="margin-bottom:${g.note?"2px":"10px"}">${g.sec}</h3>${g.note?`<p class="hint" style="margin:0 0 12px">${g.note}</p>`:""}
       <div class="cards">${resItems(g).map(([t,d,u,c])=>u==="app:bylaws"?`<button type="button" class="card" data-act="open-bylaws"><span class="t">${t}</span><span class="isub">${d}</span><span><span class="chip mem">${c||"Open"}</span></span></button>`:u==="app:decisions"?`<button type="button" class="card" data-act="open-laws" data-m="dec"><span class="t">${t}</span><span class="isub">${d}</span><span><span class="chip mem">${c||"Open"}</span></span></button>`:u==="app:laws"?`<button type="button" class="card" data-act="open-laws"><span class="t">${t}</span><span class="isub">${d}</span><span><span class="chip mem">${c||"Open"}</span></span></button>`:u==="app:monitor"?`<button type="button" class="card" data-act="open-monitor"><span class="t">${t}</span><span class="isub">${d}</span><span><span class="chip mem">${c||"Open"}</span></span></button>`:u==="app:drills"?`<button type="button" class="card" data-act="open-drills"><span class="t">${t}</span><span class="isub">${d}</span><span><span class="chip mem">${c||"Open"}</span></span></button>`:u?`<a class="card" href="${u}" target="_blank" rel="noopener" data-ext="${u}"><span class="t">${t}</span><span class="isub">${d}</span><span><span class="chip mem">${c||"Open PDF"}</span></span></a>`:`<button type="button" class="card" data-act="res" data-res="${esc(t)}"><span class="t">${t}</span><span class="isub">${d}</span><span><span class="chip">Planned</span></span></button>`).join("")}</div></div>`:"").join("")}
   </div>`;
@@ -2218,6 +2316,7 @@ document.addEventListener("click",e=>{
     case "body-pick":{const b=bodyById(t.dataset.bid);if(b.t==="York Rite")(S.cityOpen||(S.cityOpen={}))[cityOf(b)]=true;if(b.lvl||b.t==="York Rite"){const o=S.srOpen||(S.srOpen={});entChain(b).slice(1).forEach(i=>o[i]=true)}S.bodyT=b.t;S.bodyK="";S.bodyQ="";S.bodySel=b.id;S.bodyOpen=true;render();scrollTo(0,0);break}
     case "body-kind":S.bodyK=t.dataset.v;render();break;
     case "body-follow":{const a=(S.bodyFollows||(S.bodyFollows={}))[S.user]||(S.bodyFollows[S.user]=[]);const i=a.indexOf(t.dataset.bid),b=bodyById(t.dataset.bid);if(i>=0){a.splice(i,1);toast(`Unfollowed ${bodyTitle(b)}`)}else{a.push(t.dataset.bid);toast(`Following ${bodyTitle(b)}`)}render();break}
+    case "name-claim":nameClaim(t.dataset.n,t.dataset.o);break;
     case "dir-find":S.dirFind=true;S.dirOpen=false;S.distPage=null;S.q="";S.dist="";render();break;
     case "dist-open":S.distPage=t.dataset.d;S.dirOpen=false;render();scrollTo(0,0);break;
     case "dist-list":S.distPage=null;render();scrollTo(0,0);break;
@@ -2276,6 +2375,17 @@ document.addEventListener("click",e=>{
     case "open-drills":S.prevTab=S.tab;S.tab="drills";S.drillSlug=null;render();scrollTo(0,0);playDrillIntro();break
     case "open-bylaws":S.tab="bylaws";render();scrollTo(0,0);break
     case "by-back":S.tab="res";render();scrollTo(0,0);break
+    case "form-add":UI.formEd={mode:"new",id:null,scope:formScopesICan()[0]};UI.formDel=null;render();break
+    case "form-edit":UI.formEd={mode:"edit",id:t.dataset.id};render();break
+    case "form-replace":UI.formEd={mode:"replace",id:t.dataset.id};render();break
+    case "form-cancel":UI.formEd=null;render();break
+    case "form-hist":UI.formHist=UI.formHist===t.dataset.id?null:t.dataset.id;render();break
+    case "form-del":UI.formDel=t.dataset.id;render();break
+    case "form-del-no":UI.formDel=null;render();break
+    case "form-del-yes":{const f=(S.forms||{})[t.dataset.id];UI.formDel=null;if(!f||!canFormScope(f.scope))break;[f.v,...(f.hist||[]).map(h=>h.v)].forEach(v=>fdel(`form:${f.id}:${v}`).catch(()=>{}));delete S.forms[f.id];logIt(`removed the form "${f.title}"`);audit(f.scope,`removed the form "${f.title}"`);toast("Form removed");render();break}
+    case "form-open":{const f=(S.forms||{})[t.dataset.id];if(!f||!formSee(f))break;const v=+t.dataset.v,ver=v===f.v?f:(f.hist||[]).find(h=>h.v===v);if(!ver)break;
+      if(ver.kind==="link"){const w=window.open(fUrl(ver.url),"_blank");toast(w?"Opening the official form in a new tab.":"Your browser blocked the new tab.");break}
+      fget(`form:${f.id}:${v}`).then(bl=>{if(!bl){toast("The file isn't in this browser. Ask whoever added it to upload it again.");return}const u=URL.createObjectURL(bl),a=document.createElement("a");a.href=u;a.target="_blank";a.rel="noopener";if(!/pdf|image/.test(bl.type))a.download=ver.file.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),120000)}).catch(()=>toast("Couldn't open the file"));break}
     case "bylaw-open":{const n=+t.dataset.n,l=byNum(n);if(!l||!canSeeBylaws(l))break;fget("bylaws:"+n).then(bl=>{if(!bl){toast("The file isn't in this browser. Ask the secretary to upload it again.");return}const u=URL.createObjectURL(bl),a=document.createElement("a");a.href=u;a.target="_blank";a.rel="noopener";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),120000)}).catch(()=>toast("Couldn't open the file"));break}
     case "bylaw-remove":{const n=+t.dataset.n,l=byNum(n);if(!l||!canEdit(l))break;fdel("bylaws:"+n).catch(()=>{});if(S.bylaws)delete S.bylaws[n];logIt(`removed the bylaws of ${lname(l)}`);audit("l:"+l.n,"removed the bylaws");toast("Bylaws removed");render();break}
     case "open-laws":S.tab="laws";S.lawOpen=null;S.lawMode=t.dataset.m||"art";render();scrollTo(0,0);break
@@ -2383,6 +2493,7 @@ document.addEventListener("click",e=>{
 document.addEventListener("submit",e=>{
   e.preventDefault(); const f=e.target; const v=id=>(document.getElementById(id)?.value||"").trim();
   if(f.id==="cloudform"){cloudSignIn();return}
+  if(f.id==="formform"){formSave();return}
   if(f.id==="editform"){
     const l=byNum(S.sel); if(!canEdit(l)) return;
     const next={name:v("f-name")||l.name,meet:v("f-meet"),addr:v("f-addr"),city:v("f-city")};
@@ -2479,7 +2590,9 @@ document.addEventListener("submit",e=>{
     const member=!isL||p.lodges.some(x=>x.n===ref.id&&!x.pending);
     const taken=realProfiles().some(([id,q])=>q!==p&&holds(q,key).includes(a));
     const queue=()=>{(p.claims||(p.claims=[])).push({key,kind,title:a,body:bv,ref,year,requested:now});if(isL&&!p.lodges.some(x=>x.n===ref.id))p.lodges.push({n:ref.id,since:"",pending:true,requested:now});logIt(`asked to be ${a} at ${bv}`);audit(key,`asked to be ${a}`);toast(`Request sent. An officer of ${bv} will approve it.`)};
-    if(!member){
+    const nmHit=sameName(listedOfficer(ref,a),p.name);
+    if(nmHit){if(!member&&isL){p.lodges=p.lodges.filter(x=>x.n!==ref.id);p.lodges.push({n:ref.id,since:String(new Date().getFullYear()),approvedBy:"name match",approvedAt:now})}p[kind].push({title:a,body:bv,ref,year});logIt(`joined ${bv} as ${a} (name matched)`);audit(key,`claimed ${a} (name matched the officer list, approved automatically)`);toast(`Your name matches the officer list. Approved automatically.`)}
+    else if(!member){
       if(!hasRealAuth(key)){p.lodges.push({n:ref.id,since:String(new Date().getFullYear()),approvedBy:"first claim",approvedAt:now});p[kind].push({title:a,body:bv,ref,year});logIt(`was first to claim ${a} at ${bv}`);audit(key,`claimed ${a} (first claim, approved automatically)`);toast(`You are the first to claim ${a} at ${bv}. Approved automatically.`)}
       else queue();
     }else if(taken)queue();
