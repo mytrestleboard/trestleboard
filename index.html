@@ -256,6 +256,7 @@ table.matrix thead th{font-size:12px;text-transform:uppercase;letter-spacing:.06
 .profile-head{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
 .cloud #viewas,.cloud #reset,.cloud .demo-note{display:none!important}
 .logo{display:block;object-fit:contain;border-radius:12px;background:var(--surface);border:1px solid var(--line);padding:4px;flex:none}
+.pubnav{display:flex;flex-wrap:wrap;gap:4px;margin:12px 0;border-bottom:1px solid var(--line);padding-bottom:8px}.pubnav button{background:none;border:0;border-radius:6px;padding:8px 12px;cursor:pointer;color:var(--fg);font:inherit;font-weight:500}.pubnav button:hover{background:var(--sunk)}.pubnav button.on{background:var(--accent-soft);color:var(--accent)}.pubnav .portal{margin-left:auto;background:var(--accent);color:var(--accent-fg)}.pubnav .portal:hover{background:var(--accent);opacity:.9}.pubnav .portal.on{background:var(--accent);color:var(--accent-fg)}
 .pubday,.pubev{border:1px solid var(--line);border-radius:10px;margin:6px 0;background:var(--surface);color:var(--fg)}.pubday>summary,.pubev>summary{cursor:pointer;padding:10px 12px;list-style:none;color:var(--fg)}.pubday-in{padding:0 8px 8px}.pubev{margin:4px 0;background:var(--sunk)}.pubev-in{padding:2px 12px 10px;color:var(--fg)}
 .logo.lg{width:76px;height:76px}.logo.ph{display:grid;place-items:center;border-style:dashed;color:var(--muted);font-size:12px;padding:0}
 .logo-hd{display:grid;gap:4px;justify-items:center;flex:none}
@@ -868,7 +869,7 @@ const entGeo=e=>{const g=zgeo();return (e.zip&&g.z[e.zip])||g.c[String(e.city||"
 const miles=(a,b)=>{const R=3958.8,r=x=>x*Math.PI/180,dl=r(b[0]-a[0]),dn=r(b[1]-a[1]),h=Math.sin(dl/2)**2+Math.cos(r(a[0]))*Math.cos(r(b[0]))*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
 const nearest=(pt,list,n)=>list.map(e=>({e,d:(()=>{const g=entGeo(e);return g?miles(pt,g):null})()})).filter(x=>x.d!=null).sort((a,b)=>a.d-b.d).slice(0,n);
 /* ---------- Public front page (visitors who are not signed in) ---------- */
-const PUB={tab:"cal",q:"",sel:null,y:today.getFullYear(),m:today.getMonth(),prev:"cal",where:"",rad:25,joinQ:"",joinRes:null};
+const PUB={tab:"home",q:"",sel:null,y:today.getFullYear(),m:today.getMonth(),prev:"home",where:"",rad:25,joinQ:"",joinRes:null};
 const pubEnts=()=>PUB.tab!=="bodies"?L.filter(l=>!l.gl&&!l.pubOff):[...BODIES,...SRX,...YRX].filter(b=>!b.pubOff);
 const pubList=()=>{const q=PUB.q.trim().toLowerCase(),all=pubEnts();
   const hit=q?all.filter(e=>[e.name,e.n,e.t,e.city,e.d,e.county].join(" ").toLowerCase().includes(q)):all;
@@ -895,10 +896,10 @@ function pubCal(){const y=PUB.y,mo=PUB.m;
   ${keys.length?keys.map(d=>`<details class="pubday" ${d===TODAY?"open":""}><summary><b>${esc(prettyDate(d))}</b> <span class="chip">${days[d].length} ${days[d].length===1?"event":"events"}</span></summary><div class="pubday-in">${days[d].map(pubEvent).join("")}</div></details>`).join(""):`<p class="hint">No public events this month.</p>`}`}
 
 function pubNear(q,n){const pt=placeGeo(q);if(!pt)return null;return nearest(pt,L.filter(l=>!l.gl&&!l.pubOff),n)}
-function pubNearCards(res){return res.map(({e:l,d})=>`<div class="card" style="display:grid;gap:4px"><span class="t">${esc(lname(l))}</span><span class="s">${d<1?"Under 1 mile":Math.round(d)+" miles"} away${l.city?" · "+esc(l.city):""}</span>${l.meet?`<span class="s">Meets ${esc(l.meet)}</span>`:""}<span style="display:flex;gap:10px;flex-wrap:wrap"><button class="linkbtn" type="button" data-act="pub-open" data-t="l" data-id="${l.n}" data-from="join">Address, map and contact</button></span></div>`).join("")}
+function pubNearCards(res){return res.map(({e:l,d})=>`<div class="card" style="display:grid;gap:4px"><span class="t">${esc(lname(l))}</span><span class="s">${d<1?"Under 1 mile":Math.round(d)+" miles"} away${l.city?" · "+esc(l.city):""}</span>${l.meet?`<span class="s">Meets ${esc(l.meet)}</span>`:""}<span style="display:flex;gap:10px;flex-wrap:wrap"><button class="linkbtn" type="button" data-act="pub-open" data-t="l" data-id="${l.n}" data-from="${PUB.tab}">Address, map and contact</button></span></div>`).join("")}
 function joinView(){
   const r=PUB.joinRes;
-  return `<div class="panel pad" style="display:grid;gap:14px"><button class="linkbtn" type="button" data-act="pub-tab" data-id="cal" style="justify-self:start">← Back to the calendar</button>
+  return `<div class="panel pad" style="display:grid;gap:14px"><button class="linkbtn" type="button" data-act="pub-tab" data-id="home" style="justify-self:start">← Back to the home page</button>
   <h2 style="margin:0">How do I become a Mason?</h2>
   <p style="margin:0">Freemasonry is a fraternity of men who work to become better men, together with their families and communities. Nobody will recruit you. A man joins of his own free will, and the first step is simply to ask.</p>
   <h3 class="sub" style="margin:4px 0 0">The steps</h3>
@@ -915,14 +916,21 @@ function pubDetail(){const lod=PUB.selT==="l",e=lod?byNum(+PUB.sel):entById(PUB.
   return `<div class="panel pad"><button class="linkbtn" type="button" data-act="pub-back">← Back to the list</button><h2 style="margin:10px 0 2px">${esc(lod?lname(e):e.name)}</h2><p class="hint" style="margin:0 0 12px">${esc(lod?"District "+e.d+(e.county?" · "+e.county+" County":""):e.t)}</p>
   <dl class="kv">${e.meet?`<dt>Meets</dt><dd>${esc(e.meet)}</dd>`:""}${e.addr?`<dt>Address</dt><dd>${esc([e.addr,e.city,"TX",e.zip].filter(Boolean).join(", "))}</dd>`:e.city?`<dt>City</dt><dd>${esc(e.city)}</dd>`:""}${e.phone?`<dt>Phone</dt><dd><a href="tel:${esc(String(e.phone).replace(/[^0-9+]/g,""))}">${esc(e.phone)}</a></dd>`:""}${e.email?`<dt>Email</dt><dd><a href="mailto:${esc(e.email)}">${esc(e.email)}</a></dd>`:""}${web?`<dt>Website</dt><dd><a href="#" data-ext="${esc(web)}">${esc(e.web)}</a></dd>`:""}</dl>
   ${mapBlock(e)}<p class="hint">Members: sign in to see this lodge's calendar, Trestle Board and officers. <button class="linkbtn" type="button" data-act="pub-login">Member portal</button></p></div>`}
+const PUBNAV=[["home","Home"],["cal","Calendar"],["lodges","Lodges"],["bodies","Appendant Bodies"]];
+function pubNav(act){return `<nav class="pubnav" aria-label="Main menu">${PUBNAV.map(([k,l])=>`<button type="button" class="${act===k?"on":""}" data-act="pub-tab" data-id="${k}" ${act===k?'aria-current="page"':""}>${l}</button>`).join("")}<button type="button" class="portal ${act==="portal"?"on":""}" data-act="pub-login">Member Portal</button></nav>`}
+function homeView(){const r=PUB.joinRes;
+  return `<div class="panel pad" style="display:grid;gap:14px"><h2 style="margin:0">Find a Masonic lodge near you</h2>
+  <p style="margin:0">Freemasonry is a fraternity of men who work to become better men, together with their families and communities. Find lodges, meetings and events close to you, or learn how to join.</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" type="button" data-act="pub-tab" data-id="join">How do I become a Mason?</button><button class="btn ghost" type="button" data-act="pub-tab" data-id="cal">See the calendar</button></div>
+  <form id="joinform" style="display:flex;gap:8px;flex-wrap:wrap"><input type="text" id="join-q" name="q" placeholder="Your ZIP code or city" aria-label="ZIP code or city" value="${esc(PUB.joinQ)}" style="max-width:260px" autocomplete="postal-code"><button class="btn" type="submit">Show the closest lodges</button></form>
+  <p class="hint" style="margin:0">We only use this to measure distance. It stays in your browser and is not saved or sent anywhere.</p>
+  ${r===null?"":r==="none"?`<p class="hint">We could not find that ZIP code or city. Try a five-digit Texas ZIP code, or the name of a nearby city.</p>`:`<div class="cards">${pubNearCards(r)}</div><p style="margin:0"><button class="linkbtn" type="button" data-act="pub-tab" data-id="lodges">Browse all lodges</button></p>`}</div>`}
 function publicView(){
-  return `<div class="hero"><div class="hero-img"></div><div class="hero-in"><svg class="tlogo" id="hero-logo" viewBox="0 0 34 34" aria-hidden="true"></svg><b>My Trestle Board</b><small>One Trestle Board for all of Freemasonry.</small></div></div>
-  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:10px 0"><button class="btn" type="button" data-act="pub-tab" data-id="join">How do I become a Mason?</button><button class="linkbtn" type="button" data-act="pub-login">Member portal</button></div>
-  ${PUB.sel?pubDetail():PUB.tab==="join"?joinView():`<div class="panel pad" style="display:grid;gap:12px"><h2 style="margin:0">${PUB.tab==="cal"?"Masonic lodges and events near you":"Find a lodge or body"}</h2>
-  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ${PUB.tab==="cal"?"":"ghost"} small" type="button" data-act="pub-tab" data-id="cal">Calendar</button><button class="btn ${PUB.tab==="lodges"?"":"ghost"} small" type="button" data-act="pub-tab" data-id="lodges">Lodges</button><button class="btn ${PUB.tab==="bodies"?"":"ghost"} small" type="button" data-act="pub-tab" data-id="bodies">Appendant bodies</button></div>
-  ${PUB.tab==="cal"?pubCal():`<p class="hint" style="margin:0">Meeting times, addresses and contact details for lodges and appendant bodies.</p><input type="search" id="pub-q" placeholder="Search by name, number, city or district" aria-label="Search" value="${esc(PUB.q)}"><div id="pub-list">${pubList()}</div>`}</div>`}`}
+  const act=PUB.sel?(PUB.selT==="l"?"lodges":"bodies"):PUB.tab;
+  return `<div class="hero"><div class="hero-img"></div><div class="hero-in"><svg class="tlogo" id="hero-logo" viewBox="0 0 34 34" aria-hidden="true"></svg><b>My Trestle Board</b><small>One Trestle Board for all of Freemasonry.</small></div></div>${pubNav(act)}
+  ${PUB.sel?pubDetail():PUB.tab==="join"?joinView():PUB.tab==="home"?homeView():PUB.tab==="cal"?`<div class="panel pad" style="display:grid;gap:12px"><h2 style="margin:0">Masonic events</h2>${pubCal()}</div>`:`<div class="panel pad" style="display:grid;gap:12px"><h2 style="margin:0">${PUB.tab==="bodies"?"Appendant bodies":"Lodge directory"}</h2><p class="hint" style="margin:0">Meeting times, addresses and contact details.</p><input type="search" id="pub-q" placeholder="Search by name, number, city or district" aria-label="Search" value="${esc(PUB.q)}"><div id="pub-list">${pubList()}</div></div>`}`}
 function loginView(){
-  return `<div class="hero"><div class="hero-img"></div><div class="hero-in"><svg class="tlogo" id="hero-logo" viewBox="0 0 34 34" aria-hidden="true"></svg><b>My Trestle Board</b><small>One Trestle Board for all of Freemasonry.</small></div></div><div class="panel login"><h2>My Trestle Board</h2><p class="sub" style="margin-bottom:2px"><b>One Trestle Board for all of Freemasonry.</b></p><p class="sub">Sign in to your lodges</p><p style="margin:0 0 8px"><button class="linkbtn" type="button" data-act="pub-home">← Back to the public site</button></p>
+  return `<div class="hero"><div class="hero-img"></div><div class="hero-in"><svg class="tlogo" id="hero-logo" viewBox="0 0 34 34" aria-hidden="true"></svg><b>My Trestle Board</b><small>One Trestle Board for all of Freemasonry.</small></div></div>${pubNav("portal")}<div class="panel login"><h2>My Trestle Board</h2><p class="sub" style="margin-bottom:2px"><b>One Trestle Board for all of Freemasonry.</b></p><p class="sub">Sign in to your lodges</p>
     ${CLOUD?`<form id="cloudform" style="display:grid;gap:10px;text-align:left"><label>Email<input type="email" id="cl-email" autocomplete="username"></label><label>Password<input type="password" id="cl-pw" autocomplete="current-password"></label><label>Your name <span class="hint" style="margin:0">(only needed to create an account)</span><input type="text" id="cl-name" autocomplete="name"></label>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit" id="login-btn">Sign in</button><button class="btn ghost" type="button" data-act="cloud-signup">Create account</button></div><p class="hint" id="cl-msg" role="status" style="margin:0"></p></form>`
     :`<div class="fake" aria-hidden="true"><span>Username</span><div>Username or email</div></div>
@@ -2387,7 +2395,7 @@ document.addEventListener("click",e=>{
     case "pub-nearclear":PUB.where="";render();break;
     case "pub-today":PUB.y=today.getFullYear();PUB.m=today.getMonth();render();break;
     case "pub-expand":document.querySelectorAll(".pubday").forEach(d=>{d.open=t.dataset.d==="1"});break;
-    case "pub-tab":PUB.tab=t.dataset.id;PUB.q="";PUB.sel=null;render();break;
+    case "pub-tab":UI.login=false;PUB.tab=t.dataset.id;PUB.q="";PUB.sel=null;render();break;
     case "name-claim":nameClaim(t.dataset.n,t.dataset.o);break;
     case "dir-find":S.dirFind=true;S.dirOpen=false;S.distPage=null;S.q="";S.dist="";render();break;
     case "dist-open":S.distPage=t.dataset.d;S.dirOpen=false;render();scrollTo(0,0);break;
