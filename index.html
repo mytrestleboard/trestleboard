@@ -1066,6 +1066,17 @@ function goTo(go){
   if(tab==="members"){S.tab="members";S.personOpen=false;render();scrollTo(0,0);return}
   if(tab==="res"){S.tab="res";render();const el=document.getElementById("res-"+sub);if(el)el.scrollIntoView({block:"start"});else scrollTo(0,0);return}
 }
+// A card-verified member whose name matches the officer list of a lodge on his card gets that office automatically (once; if he removes it, it stays removed).
+function autoOfficerClaims(){
+  const pr=myProfile();if(!pr||pr.sample||!pr.verified||!CL.ver)return;
+  const cardNos=(Array.isArray(CL.ver.lodges)?CL.ver.lodges:[]).map(x=>+x.no);pr.autoDone=pr.autoDone||[];let n=0;
+  cardNos.forEach(no=>{const l=byNum(no);if(!l||l.gl)return;const key="l:"+l.n;
+    OFFICES.forEach(o=>{const nm=manualOf(l,o),tag=key+"|"+o;
+      if(!nm||!sameName(nm,pr.name)||pr.autoDone.includes(tag)||holds(pr,key).includes(o))return;
+      if(realProfiles().some(([,q])=>q!==pr&&holds(q,key).includes(o)))return;
+      pr.autoDone.push(tag);(pr.current=pr.current||[]).push({title:o,body:lname(l),ref:{t:"l",id:l.n},year:"",fromList:true});
+      logIt(`listed as ${o} of ${lname(l)} (verified card and officer list)`);audit(key,`${pr.name} listed as ${o} automatically (verified card, name on the officer list)`);n++})});
+  if(n)toast(n===1?"Your office was added from the officer list":"Your offices were added from the officer list")}
 function settleFirstClaims(){
   Object.values(S.profiles).forEach(p=>{if(p.sample&&!/^TEST /.test(p.name))p.name="TEST "+p.name});
   realProfiles().forEach(([,p])=>p.lodges.forEach(x=>{if(x.pending&&x.n&&!hasRealAuth("l:"+x.n)){delete x.pending;x.since=x.since||String(new Date().getFullYear());x.approvedBy="first claim";x.approvedAt=new Date().toISOString()}}));
@@ -1164,7 +1175,7 @@ function syncTestData(){
 function render(){
   {const cf=document.getElementById("contactform"),pid=cf&&cf.dataset.pid;if(pid&&S.profiles[pid]&&canEditProfile(pid))stashProfileForm(S.profiles[pid])}
   syncTestData();
-  settleFirstClaims();applyBodyInfo();L=lodges(); renderSwitcher(); renderAcct();
+  settleFirstClaims();try{autoOfficerClaims()}catch(e){console.warn("auto officer",e)}applyBodyInfo();L=lodges(); renderSwitcher(); renderAcct();
   const v=document.getElementById("view");
   document.body.classList.toggle("out",!signedIn());
   if(RESET){document.getElementById("tabs").innerHTML="";v.innerHTML=newPasswordView();tlHeader();return}
@@ -1345,7 +1356,8 @@ function bodiesView(){
 
 /* ---------- directory ---------- */
 function filtered(){const q=S.q.trim().toLowerCase();return L.filter(l=>inGL(l)&&(!S.dist||l.d===S.dist)&&(!q||`${l.n} ${l.name} ${l.city} ${l.county}`.toLowerCase().includes(q)))}
-const sameName=(a,b)=>{const f=n=>normName(n).split(" ").filter(w=>w.length>1).join(" ");return !!f(a)&&f(a)===f(b)};
+// Same person if first and last names match; middle names and initials are ignored (cards give "Christian Lee Cisneros", officer lists "Christian Cisneros").
+const sameName=(a,b)=>{const f=n=>normName(n).split(" ").filter(w=>w.length>1),x=f(a),y=f(b);if(!x.length||!y.length)return false;if(x.length===1||y.length===1)return x.join(" ")===y.join(" ");return x[0]===y[0]&&x[x.length-1]===y[y.length-1]};
 const listedOfficer=(ref,title)=>ref&&ref.t==="l"&&byNum(ref.id)?manualOf(byNum(ref.id),title):((S.listedOff||{})[ref&&ref.id]||{})[title]||"";
 const nameMatches=()=>{const pr=myProfile();if(!pr||!signedIn()||pr.sample)return [];const out=[];if(!normName(pr.name))return out;
   L.forEach(l=>{if(l.gl)return;OFFICES.forEach(o=>{const nm=manualOf(l,o);if(nm&&sameName(nm,pr.name)&&!holds(pr,"l:"+l.n).includes(o)&&!(pr.claims||[]).some(c=>c.key==="l:"+l.n&&c.title===o))out.push({l,o})})});return out};
