@@ -263,7 +263,7 @@ table.matrix thead th{font-size:12px;text-transform:uppercase;letter-spacing:.06
 .linklike{background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer;font:inherit;text-align:left}
 .xbtn{background:none;border:0;color:var(--danger);cursor:pointer;font-size:13px;padding:0 4px}
 .profile-head{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
-.cloud #viewas,.cloud #reset,.cloud .demo-note{display:none!important}
+.cloud .viewas,.cloud #reset,.cloud .demo-note{display:none!important}
 .logo{display:block;object-fit:contain;border-radius:12px;background:var(--surface);border:1px solid var(--line);padding:4px;flex:none}
 /* Public site: one consistent button and field style */
 body.out #view .btn,body.out #view button.btn{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 18px;font:inherit;font-size:15px;font-weight:600;line-height:1.2;border-radius:8px;border:1.5px solid var(--accent);background:var(--accent);color:var(--accent-fg);cursor:pointer;margin:0;text-align:center}
@@ -2937,7 +2937,7 @@ async function cloudSignUp(){const em=(document.getElementById("cl-email").value
 const needsVerify=()=>CLOUD&&CL.on&&!CL.ver&&CL.role!=="super";
 const degFromCard=d=>/master/i.test(d)?"MM":/fellow/i.test(d)?"FC":/entered/i.test(d)?"EA":"MM";
 function applyVerification(){const v=CL.ver,p=myProfile();if(!v||!p)return;
-  const lod=Array.isArray(v.lodges)?v.lodges:[];if(v.name)p.name=v.name;p.degree=degFromCard(v.degree||"");p.verified={asOf:v.as_of||"",at:v.verified_at||""};if(v.office)p.cardOffice=v.office;
+  const lod=Array.isArray(v.lodges)?v.lodges:[];if(v.name)p.name=v.name;p.degree=degFromCard(v.degree||"");p.verified={asOf:v.as_of||"",at:v.verified_at||""};if(v.office){p.cardOffice=v.office;const parts=String(v.office).split(/;\s*/);parts.forEach(o=>{const m=o.match(/^(?:[A-Z]{1,6}\s*-\s*)?(.*?)\s*-\s*(District\s+\S+)\s*$/i);if(!m)return;const title=m[1].trim(),body=m[2].replace(/\s+/g," ").trim();p.current=p.current||[];if(!p.current.some(c=>c.title===title&&c.body===body))p.current.push({title,body,year:"",fromCard:true})})}
   lod.forEach(x=>{const l=byNum(+x.no);if(!l)return;const ex=p.lodges.find(y=>y.n===l.n);if(!ex)p.lodges.push({n:l.n,since:"",approvedBy:"verified card",approvedAt:v.verified_at||""});else if(ex.pending){delete ex.pending;ex.approvedBy="verified card"}})}
 function verifyInner(){return `
   <div id="scanbox" style="display:grid;gap:8px;margin:0 0 12px"><button class="btn" type="button" data-act="scan-card">Scan my card with the camera</button><video id="scanvid" playsinline muted style="display:none;width:100%;border-radius:10px;background:#000"></video><button class="btn ghost" type="button" id="scanstop" data-act="scan-stop" style="display:none">Cancel scan</button></div>
@@ -2980,7 +2980,9 @@ async function cloudVerify(){const el=document.getElementById("vf-link"),link=(e
     const j=await r.json().catch(()=>({ok:false,reason:"The verification service did not answer. Please try again."}));
     if(!j.ok){msg(j.reason||"Could not verify that card.");if(j.debug)console.warn("verify debug",j.debug);return}
     CL.ver=(await sbFetch("/rest/v1/verifications?select=*&user_id=eq."+SBS.uid))[0]||{degree:j.card.degree,as_of:j.card.asOf,lodges:j.card.lodges,office:j.card.office,verified_at:new Date().toISOString()};
-    applyVerification();logIt("verified their Grand Lodge of Texas card");toast("Verified. Welcome, Brother.");if(S.tab!=="account")S.tab="feed";render();scrollTo(0,0)
+    applyVerification();logIt("verified their Grand Lodge of Texas card");
+    try{const a=(await sbFetch("/rest/v1/accounts?select=*&user_id=eq."+SBS.uid))[0];if(a){CL.role=a.role||"member";const u=USERS.find(x=>x.id===a.profile_id);if(u){u.role=CL.role;if(a.district)u.district=a.district;if(a.lodge)u.lodge=a.lodge}}}catch(e){}
+    toast(j.granted?`Verified. Welcome, Brother. You have ${j.granted.role==="ddgm"?"DDGM":"DI"} rights for District ${j.granted.district}.`:"Verified. Welcome, Brother.");if(S.tab!=="account")S.tab="feed";render();scrollTo(0,0)
   }catch(e){msg("Could not reach the verification service: "+e.message)}}
 function cloudSignOut(){SBS=null;sbSave();CL.on=false;CL.snap={};CL.last="1970-01-01T00:00:00+00:00";clearInterval(CL.poll)}
 if(CLOUD){document.body.classList.add("cloud");USERS.splice(0,USERS.length,...USERS.filter(u=>u.id==="public"));S.user="public"}
