@@ -156,8 +156,9 @@ nav.tabs .subnav .badge{position:static}
   .lf{display:none}.ls{display:inline}
   nav.tabs>.tabgrp>button{padding:14px 2px 12px;min-height:56px;font-size:14px;font-weight:600;text-align:center;border-bottom:0;border-top:3px solid transparent;white-space:nowrap;line-height:1.2;letter-spacing:.01em}
   nav.tabs>.tabgrp>button[aria-selected=true]{border-top-color:var(--accent);color:var(--accent)}
-  nav.tabs>.tabgrp>.caret{width:18px;font-size:11px;opacity:.8}
-  nav.tabs>.tabgrp>button[data-go]{padding-right:0}
+  nav.tabs>.tabgrp>.caret{display:none}
+  nav.tabs>.tabgrp>button[data-go]::after{content:"▾";display:inline-block;margin-left:3px;font-size:15px;line-height:1;color:var(--accent);opacity:.9;transform:translateY(1px)}
+  nav.tabs>.tabgrp>button[data-go][aria-selected=true]::after{content:"▴"}
   nav.tabs>.tabgrp{display:flex;align-items:stretch}
   .subnav{position:fixed;left:12px;right:12px;top:auto;bottom:calc(68px + env(safe-area-inset-bottom,0px));min-width:0}
   nav.tabs .subnav button{padding:14px 12px;font-size:16px}
@@ -2409,7 +2410,7 @@ document.addEventListener("click",e=>{
   if(UI.menu&&!e.target.closest("#acct")){UI.menu=false;renderAcct()}
   if(UI.navMenu&&!e.target.closest(".tabgrp")){UI.navMenu=null;tabs()}
   const t=e.target.closest("[data-tab],[data-go],[data-lodge],[data-act],[data-lodge-open],[data-person],[data-day]"); if(!t) return;
-  if(t.dataset.go){goTo(t.dataset.go);return}
+  if(t.dataset.go){const grp=t.closest(".tabgrp"),car=grp&&grp.querySelector(".caret");if(car&&matchMedia("(max-width:700px)").matches&&t.getAttribute("aria-selected")==="true"){UI.navMenu=UI.navMenu===car.dataset.grp?null:car.dataset.grp;tabs();return}UI.navMenu=null;goTo(t.dataset.go);return}
   if(t.dataset.tab){S.tab=t.dataset.tab;if(S.tab==="feed")S.feedFilter="all";if(S.tab==="bodies")S.bodyOpen=false;if(S.tab==="members")S.personOpen=false;if(S.tab==="dir"){S.dirFind=false;S.dirOpen=false;S.distPage=null;S.dist="";S.q=""}UI={editing:false,editProfile:false,adding:null,confirmDel:null};render();return}
   if(t.dataset.lodge){S.sel=+t.dataset.lodge;UI.editing=false;UI.adding=null;if(S.tab==="dir"&&S.dirFind)S.dirOpen=true;render();if(innerWidth<=820)document.getElementById("detail")?.scrollIntoView({behavior:"smooth"});return}
   if(t.dataset.lodgeOpen){openLodge(t.dataset.lodgeOpen);return}
