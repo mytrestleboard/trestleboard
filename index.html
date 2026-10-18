@@ -257,6 +257,7 @@ table.matrix thead th{font-size:12px;text-transform:uppercase;letter-spacing:.06
 .cloud #viewas,.cloud #reset,.cloud .demo-note{display:none!important}
 .logo{display:block;object-fit:contain;border-radius:12px;background:var(--surface);border:1px solid var(--line);padding:4px;flex:none}
 .pubnav{display:flex;flex-wrap:wrap;gap:4px;margin:12px 0;border-bottom:1px solid var(--line);padding-bottom:8px}.pubnav button{background:none;border:0;border-radius:6px;padding:8px 12px;cursor:pointer;color:var(--fg);font:inherit;font-weight:500}.pubnav button:hover{background:var(--sunk)}.pubnav button.on{background:var(--accent-soft);color:var(--accent)}.pubnav .portal{margin-left:auto;background:var(--accent);color:var(--accent-fg)}.pubnav .portal:hover{background:var(--accent);opacity:.9}.pubnav .portal.on{background:var(--accent);color:var(--accent-fg)}
+.pubgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.pubgrid .gh{text-align:center;font-size:12px;color:var(--muted);padding:4px 0}.pubgrid .gc{min-height:56px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);padding:4px;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;cursor:pointer;font:inherit;text-align:left}.pubgrid .gc.blank{border:0;background:none;cursor:default}.pubgrid .gc.past{opacity:.5}.pubgrid .gc.today{border-color:var(--accent);border-width:2px}.pubgrid .gc.sel{background:var(--accent-soft)}.pubgrid .gn{font-weight:600;font-size:13px}.pubgrid .gb{align-self:flex-end;background:var(--accent);color:var(--accent-fg);border-radius:999px;font-size:11px;padding:1px 7px}@media(max-width:560px){.pubgrid .gc{min-height:44px}}
 .pubday,.pubev{border:1px solid var(--line);border-radius:10px;margin:6px 0;background:var(--surface);color:var(--fg)}.pubday>summary,.pubev>summary{cursor:pointer;padding:10px 12px;list-style:none;color:var(--fg)}.pubday-in{padding:0 8px 8px}.pubev{margin:4px 0;background:var(--sunk)}.pubev-in{padding:2px 12px 10px;color:var(--fg)}
 .logo.lg{width:76px;height:76px}.logo.ph{display:grid;place-items:center;border-style:dashed;color:var(--muted);font-size:12px;padding:0}
 .logo-hd{display:grid;gap:4px;justify-items:center;flex:none}
@@ -869,7 +870,7 @@ const entGeo=e=>{const g=zgeo();return (e.zip&&g.z[e.zip])||g.c[String(e.city||"
 const miles=(a,b)=>{const R=3958.8,r=x=>x*Math.PI/180,dl=r(b[0]-a[0]),dn=r(b[1]-a[1]),h=Math.sin(dl/2)**2+Math.cos(r(a[0]))*Math.cos(r(b[0]))*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
 const nearest=(pt,list,n)=>list.map(e=>({e,d:(()=>{const g=entGeo(e);return g?miles(pt,g):null})()})).filter(x=>x.d!=null).sort((a,b)=>a.d-b.d).slice(0,n);
 /* ---------- Public front page (visitors who are not signed in) ---------- */
-const PUB={tab:"home",q:"",sel:null,y:today.getFullYear(),m:today.getMonth(),prev:"home",where:"",rad:25,joinQ:"",joinRes:null};
+const PUB={tab:"home",q:"",sel:null,y:today.getFullYear(),m:today.getMonth(),view:"list",horizon:7,selDay:null,prev:"home",where:"",rad:25,joinQ:"",joinRes:null};
 const pubEnts=()=>PUB.tab!=="bodies"?L.filter(l=>!l.gl&&!l.pubOff):[...BODIES,...SRX,...YRX].filter(b=>!b.pubOff);
 const pubList=()=>{const q=PUB.q.trim().toLowerCase(),all=pubEnts();
   const hit=q?all.filter(e=>[e.name,e.n,e.t,e.city,e.d,e.county].join(" ").toLowerCase().includes(q)):all;
@@ -885,15 +886,32 @@ function pubEvent(e){const src=pubSrc(e),k=evScope(e),isL=k==="gl"||k.startsWith
     ${src&&!src.gl?`<p style="margin:4px 0"><button class="linkbtn" type="button" data-act="pub-open" data-t="${isL?"l":"e"}" data-id="${esc(id)}" data-from="cal"><b>${esc(who)}</b>, full page and map</button></p>`:""}
     ${addr?`<p style="margin:4px 0">${esc(addr)} · <a href="#" data-ext="${esc(mapLink(addr))}">Open in Google Maps</a></p>`:""}
     <p style="margin:4px 0"><a href="#" data-ext="${esc(gcal(e))}">Add to Google Calendar</a></p></div></details>`}
-function pubCal(){const y=PUB.y,mo=PUB.m;
-  const pt=PUB.where?placeGeo(PUB.where):null;let evs=monthEvents(y,mo).filter(e=>!e.sample);if(pt&&PUB.rad)evs=evs.filter(e=>{const s=pubSrc(e),g=s&&entGeo(s);return g&&miles(pt,g)<=PUB.rad});const days={};
-  evs.forEach(e=>(days[e.date]=days[e.date]||[]).push(e));
-  const keys=Object.keys(days).sort();
-  return `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between"><div style="display:flex;gap:8px;align-items:center"><button class="btn ghost small" type="button" data-act="pub-mo" data-d="-1" aria-label="Previous month">‹</button><h3 class="sub" style="margin:0;min-width:150px;text-align:center">${MONTHS[mo]} ${y}</h3><button class="btn ghost small" type="button" data-act="pub-mo" data-d="1" aria-label="Next month">›</button></div>
-    <div style="display:flex;gap:8px"><button class="btn ghost small" type="button" data-act="pub-today">Today</button><button class="btn ghost small" type="button" data-act="pub-expand" data-d="1">Expand all days</button><button class="btn ghost small" type="button" data-act="pub-expand" data-d="0">Collapse all</button></div></div>
-  <form id="nearform" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="text" id="near-q" placeholder="Near me: ZIP code or city" aria-label="ZIP code or city" value="${esc(PUB.where)}" style="max-width:220px"><select id="near-r" aria-label="Distance"><option value="10" ${PUB.rad===10?"selected":""}>within 10 miles</option><option value="25" ${PUB.rad===25?"selected":""}>within 25 miles</option><option value="50" ${PUB.rad===50?"selected":""}>within 50 miles</option><option value="100" ${PUB.rad===100?"selected":""}>within 100 miles</option></select><button class="btn small" type="submit">Show events near me</button>${PUB.where?`<button class="btn ghost small" type="button" data-act="pub-nearclear">Show everywhere</button>`:""}</form>${PUB.where&&!pt?`<p class="hint" style="margin:0">We could not find that ZIP code or city, so every event is shown.</p>`:""}
-  <p class="hint" style="margin:0">${evs.length} events across ${keys.length} days${pt&&PUB.rad?" within "+PUB.rad+" miles of "+esc(PUB.where):", from every lodge and body"}. Open a day, then an event, for the address and map.</p>
-  ${keys.length?keys.map(d=>`<details class="pubday" ${d===TODAY?"open":""}><summary><b>${esc(prettyDate(d))}</b> <span class="chip">${days[d].length} ${days[d].length===1?"event":"events"}</span></summary><div class="pubday-in">${days[d].map(pubEvent).join("")}</div></details>`).join(""):`<p class="hint">No public events this month.</p>`}`}
+const addDays=(d,n)=>{const x=new Date(d+"T12:00:00");x.setDate(x.getDate()+n);return ymd(x.getFullYear(),x.getMonth(),x.getDate())};
+function pubFilterEvs(evs){const pt=PUB.where?placeGeo(PUB.where):null;evs=evs.filter(e=>!e.sample);if(pt&&PUB.rad)evs=evs.filter(e=>{const s=pubSrc(e),g=s&&entGeo(s);return g&&miles(pt,g)<=PUB.rad});return evs}
+function pubRange(from,to){const out=[];let [y,m]=from.split("-").map(Number);m--;const [ty,tm]=to.split("-").map(Number);
+  while(y<ty||(y===ty&&m<=tm-1)){out.push(...monthEvents(y,m));m++;if(m>11){m=0;y++}}
+  return pubFilterEvs(out).filter(e=>e.date>=from&&e.date<=to)}
+const pubByDay=evs=>{const d={};evs.forEach(e=>(d[e.date]=d[e.date]||[]).push(e));return d};
+function pubNearForm(){const pt=PUB.where?placeGeo(PUB.where):null;return `<form id="nearform" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="text" id="near-q" placeholder="Near me: ZIP code or city" aria-label="ZIP code or city" value="${esc(PUB.where)}" style="max-width:220px"><select id="near-r" aria-label="Distance"><option value="10" ${PUB.rad===10?"selected":""}>within 10 miles</option><option value="25" ${PUB.rad===25?"selected":""}>within 25 miles</option><option value="50" ${PUB.rad===50?"selected":""}>within 50 miles</option><option value="100" ${PUB.rad===100?"selected":""}>within 100 miles</option></select><button class="btn small" type="submit">Show events near me</button>${PUB.where?`<button class="btn ghost small" type="button" data-act="pub-nearclear">Show everywhere</button>`:""}</form>${PUB.where&&!pt?`<p class="hint" style="margin:0">We could not find that ZIP code or city, so every event is shown.</p>`:""}`}
+const pubDayBlock=(d,list,open)=>`<details class="pubday" ${open?"open":""}><summary><b>${esc(prettyDate(d))}${d===TODAY?" (today)":""}</b> <span class="chip">${list.length} ${list.length===1?"event":"events"}</span></summary><div class="pubday-in">${list.map(pubEvent).join("")}</div></details>`;
+function pubCal(){
+  const tog=`<div style="display:flex;gap:8px"><button class="btn ${PUB.view==="list"?"":"ghost"} small" type="button" data-act="pub-view" data-d="list">List</button><button class="btn ${PUB.view==="grid"?"":"ghost"} small" type="button" data-act="pub-view" data-d="grid">Month</button></div>`;
+  const near=PUB.where&&placeGeo(PUB.where)&&PUB.rad?` within ${PUB.rad} miles of ${esc(PUB.where)}`:"";
+  if(PUB.view==="grid"){
+    const y=PUB.y,mo=PUB.m,days=pubByDay(pubFilterEvs(monthEvents(y,mo))),first=new Date(y,mo,1).getDay(),n=new Date(y,mo+1,0).getDate();
+    let cells="";for(let i=0;i<first;i++)cells+=`<span class="gc blank"></span>`;
+    for(let d=1;d<=n;d++){const k=ymd(y,mo,d),c=(days[k]||[]).length;cells+=`<button type="button" class="gc ${k<TODAY?"past":""} ${k===TODAY?"today":""} ${PUB.selDay===k?"sel":""}" data-act="pub-day" data-d="${k}" aria-label="${esc(prettyDate(k))}, ${c} events"><span class="gn">${d}</span>${c?`<span class="gb">${c}</span>`:""}</button>`}
+    const sel=PUB.selDay&&PUB.selDay.startsWith(`${y}-${pad(mo+1)}-`)?PUB.selDay:null;
+    return `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between"><div style="display:flex;gap:8px;align-items:center"><button class="btn ghost small" type="button" data-act="pub-mo" data-d="-1" aria-label="Previous month">‹</button><h3 class="sub" style="margin:0;min-width:150px;text-align:center">${MONTHS[mo]} ${y}</h3><button class="btn ghost small" type="button" data-act="pub-mo" data-d="1" aria-label="Next month">›</button><button class="btn ghost small" type="button" data-act="pub-today">Today</button></div>${tog}</div>${pubNearForm()}
+    <div class="pubgrid" role="grid">${DOWS.map(d=>`<span class="gh">${d}</span>`).join("")}${cells}</div>
+    <p class="hint" style="margin:0">Tap a day to see its events${near}.</p>
+    ${sel?(days[sel]||[]).length?pubDayBlock(sel,days[sel],true):`<p class="hint">No events on ${esc(prettyDate(sel))}.</p>`:""}`}
+  const end=addDays(TODAY,PUB.horizon),days=pubByDay(pubRange(TODAY,end)),keys=Object.keys(days).sort(),total=keys.reduce((n,k)=>n+days[k].length,0);
+  return `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between"><h3 class="sub" style="margin:0">Today through ${esc(prettyDate(end))}</h3>${tog}</div>${pubNearForm()}
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost small" type="button" data-act="pub-expand" data-d="1">Expand all days</button><button class="btn ghost small" type="button" data-act="pub-expand" data-d="0">Collapse all</button></div>
+  <p class="hint" style="margin:0">${total} events across ${keys.length} days${near}. Open a day, then an event, for the address and map.</p>
+  ${keys.length?keys.map(d=>pubDayBlock(d,days[d],d===TODAY)).join(""):`<p class="hint">No public events in this stretch.</p>`}
+  <div><button class="btn ghost" type="button" data-act="pub-more">Show 7 more days</button></div>`}
 
 function pubNear(q,n){const pt=placeGeo(q);if(!pt)return null;return nearest(pt,L.filter(l=>!l.gl&&!l.pubOff),n)}
 function pubNearCards(res){return res.map(({e:l,d})=>`<div class="card" style="display:grid;gap:4px"><span class="t">${esc(lname(l))}</span><span class="s">${d<1?"Under 1 mile":Math.round(d)+" miles"} away${l.city?" · "+esc(l.city):""}</span>${l.meet?`<span class="s">Meets ${esc(l.meet)}</span>`:""}<span style="display:flex;gap:10px;flex-wrap:wrap"><button class="linkbtn" type="button" data-act="pub-open" data-t="l" data-id="${l.n}" data-from="${PUB.tab}">Address, map and contact</button></span></div>`).join("")}
@@ -2398,7 +2416,10 @@ document.addEventListener("click",e=>{
     case "pub-back":PUB.sel=null;PUB.tab=PUB.prev||PUB.tab;render();break;
     case "pub-mo":{let m=PUB.m+(+t.dataset.d),y=PUB.y;if(m<0){m=11;y--}if(m>11){m=0;y++}PUB.m=m;PUB.y=y;render();break}
     case "pub-nearclear":PUB.where="";render();break;
-    case "pub-today":PUB.y=today.getFullYear();PUB.m=today.getMonth();render();break;
+    case "pub-view":PUB.view=t.dataset.d;render();break;
+    case "pub-more":PUB.horizon+=7;render();break;
+    case "pub-day":PUB.selDay=PUB.selDay===t.dataset.d?null:t.dataset.d;render();break;
+    case "pub-today":PUB.y=today.getFullYear();PUB.m=today.getMonth();PUB.selDay=TODAY;render();break;
     case "pub-expand":document.querySelectorAll(".pubday").forEach(d=>{d.open=t.dataset.d==="1"});break;
     case "pub-tab":UI.login=false;PUB.tab=t.dataset.id;PUB.q="";PUB.sel=null;render();break;
     case "name-claim":nameClaim(t.dataset.n,t.dataset.o);break;
