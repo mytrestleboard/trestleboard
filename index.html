@@ -145,6 +145,7 @@ nav.tabs .tabgrp>button[data-go]{padding-right:4px}
 nav.tabs .subnav button{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;border-radius:6px;padding:9px 10px;color:var(--fg);white-space:normal}
 nav.tabs .subnav button:hover{background:var(--sunk)}
 nav.tabs .subnav .badge{position:static}
+.ls{display:none}
 @media (max-width:700px){
   body::after{bottom:calc(84px + env(safe-area-inset-bottom,0px));right:16px}
   nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;margin:0;padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--line);border-bottom:0;flex-wrap:nowrap;justify-content:space-around;gap:0}
@@ -152,8 +153,12 @@ nav.tabs .subnav .badge{position:static}
   nav.tabs>.tabgrp>button[data-tab],nav.tabs>.tabgrp>button[data-go]{flex:1;min-width:0}
   nav.tabs>.tabgrp>button:not(.caret){width:100%}
   nav.tabs>.tabgrp>.caret{flex:none;width:30px;padding:10px 0}
-  nav.tabs>.tabgrp>button{padding:10px 2px;font-size:12px;text-align:center;border-bottom:0;border-top:3px solid transparent;white-space:normal;line-height:1.2}
-  nav.tabs>.tabgrp>button[aria-selected=true]{border-top-color:var(--accent)}
+  .lf{display:none}.ls{display:inline}
+  nav.tabs>.tabgrp>button{padding:14px 2px 12px;min-height:56px;font-size:14px;font-weight:600;text-align:center;border-bottom:0;border-top:3px solid transparent;white-space:nowrap;line-height:1.2;letter-spacing:.01em}
+  nav.tabs>.tabgrp>button[aria-selected=true]{border-top-color:var(--accent);color:var(--accent)}
+  nav.tabs>.tabgrp>.caret{width:18px;font-size:11px;opacity:.8}
+  nav.tabs>.tabgrp>button[data-go]{padding-right:0}
+  nav.tabs>.tabgrp{display:flex;align-items:stretch}
   .subnav{position:fixed;left:12px;right:12px;top:auto;bottom:calc(68px + env(safe-area-inset-bottom,0px));min-width:0}
   nav.tabs .subnav button{padding:14px 12px;font-size:16px}
   main.wrap{padding-bottom:84px}
@@ -956,8 +961,9 @@ function pubDetail(){const lod=PUB.selT==="l",e=lod?byNum(+PUB.sel):entById(PUB.
   return `<div class="panel pad"><button class="linkbtn" type="button" data-act="pub-back">← Back to the list</button><h2 style="margin:10px 0 2px">${esc(lod?lname(e):e.name)}</h2><p class="hint" style="margin:0 0 12px">${esc(lod?"District "+e.d+(e.county?" · "+e.county+" County":""):e.t)}</p>
   <dl class="kv">${e.meet?`<dt>Meets</dt><dd>${esc(e.meet)}</dd>`:""}${e.addr?`<dt>Address</dt><dd>${esc([e.addr,e.city,"TX",e.zip].filter(Boolean).join(", "))}</dd>`:e.city?`<dt>City</dt><dd>${esc(e.city)}</dd>`:""}${e.phone?`<dt>Phone</dt><dd><a href="tel:${esc(String(e.phone).replace(/[^0-9+]/g,""))}">${esc(e.phone)}</a></dd>`:""}${e.email?`<dt>Email</dt><dd><a href="mailto:${esc(e.email)}">${esc(e.email)}</a></dd>`:""}${web?`<dt>Website</dt><dd><a href="#" data-ext="${esc(web)}">${esc(e.web)}</a></dd>`:""}</dl>
   ${mapBlock(e)}${pubSections(e,lod)}<p class="hint">Members: sign in to see this lodge's calendar, Trestle Board and officers. <button class="linkbtn" type="button" data-act="pub-login">Member portal</button></p></div>`}
-const PUBNAV=[["home","Home"],["cal","Calendar"],["lodges","Lodge Locator"],["bodies","Appendant Bodies"],["join","How to Become a Mason"]];
-function pubNav(act){return PUBNAV.map(([k,l])=>`<div class="tabgrp"><button role="tab" type="button" data-act="pub-tab" data-id="${k}" aria-selected="${act===k}">${l}</button></div>`).join("")+`<div class="tabgrp" style="margin-left:auto"><button role="tab" type="button" data-act="pub-login" aria-selected="${act==="portal"}">Member Portal</button></div>`}
+const PUBNAV=[["home","Home","Home"],["cal","Calendar","Calendar"],["lodges","Lodge Locator","Lodges"],["bodies","Appendant Bodies","Bodies"],["join","How to Become a Mason","Join"]];
+const nl=(l,sh)=>`<span class="lf">${l}</span><span class="ls">${sh||l}</span>`;
+function pubNav(act){return PUBNAV.map(([k,l,sh])=>`<div class="tabgrp"><button role="tab" type="button" data-act="pub-tab" data-id="${k}" aria-selected="${act===k}">${nl(l,sh)}</button></div>`).join("")+`<div class="tabgrp" style="margin-left:auto"><button role="tab" type="button" data-act="pub-login" aria-selected="${act==="portal"}">${nl("Member Portal","Portal")}</button></div>`}
 function locatorNear(){const r=PUB.joinRes;
   return `<div style="display:grid;gap:10px"><h3 class="sub" style="margin:0">Find the lodges closest to you</h3><form id="joinform" style="display:flex;gap:8px;flex-wrap:wrap"><input type="text" id="join-q" name="q" placeholder="Your ZIP code or city" aria-label="ZIP code or city" value="${esc(PUB.joinQ)}" style="max-width:260px" autocomplete="postal-code"><button class="btn" type="submit">Find lodges near me</button></form><p class="hint" style="margin:0">We only use this to measure distance. It stays in your browser and is not saved or sent anywhere.</p>
   ${r===null?"":r==="none"?`<p class="hint">We could not find that ZIP code or city. Try a five-digit Texas ZIP code, or the name of a nearby city.</p>`:`<div class="cards">${pubNearCards(r)}</div><p class="hint" style="margin:0">Distances are straight-line and approximate.</p>`}</div>`}
@@ -985,18 +991,18 @@ function renderSwitcher(){document.getElementById("viewas").innerHTML=USERS.filt
 function tabs(){
   const adm=can("manageRoles")||can("editAnyLodge"),pr=!!myProfile(),un=totalUnread();
   const T=[
-    {k:"feed",l:"My Trestle Board",main:"feed:feed",sub:[["feed:feed","My Trestle Board"],["feed:cal","Calendar"]]},
-    {k:"dir",l:"Lodge Directory",main:"dir:mine",sub:[["dir:mine","My lodges"],["dir:find","Find a lodge"]]},
-    {k:"bodies",l:"Appendant Bodies",main:"bodies:home",sub:[["bodies:Shrine","Shrine"],["bodies:Scottish Rite","Scottish Rite"],["bodies:York Rite","York Rite"]]},
+    {k:"feed",l:"My Trestle Board",sh:"Board",main:"feed:feed",sub:[["feed:feed","My Trestle Board"],["feed:cal","Calendar"]]},
+    {k:"dir",l:"Lodge Directory",sh:"Lodges",main:"dir:mine",sub:[["dir:mine","My lodges"],["dir:find","Find a lodge"]]},
+    {k:"bodies",l:"Appendant Bodies",sh:"Bodies",main:"bodies:home",sub:[["bodies:Shrine","Shrine"],["bodies:Scottish Rite","Scottish Rite"],["bodies:York Rite","York Rite"]]},
     {k:"members",l:"Masons",main:"members",sub:[["members","Find a Mason"],...(pr?[["members:profile","My profile"],["members:card","My card"],["members:mentor","Mentoring"],["members:messages","Messages",un]]:[])]},
     {k:"res",l:"Resources",main:"res",sub:RES.map((g,i)=>resItems(g).length?["res:"+i,g.sec]:null).filter(Boolean)}];
   if(adm) T.push({k:"admin",l:"Admin"});
   if(S.tab!=="account"&&S.tab!=="profile"&&S.tab!=="messages"&&S.tab!=="card"&&S.tab!=="drills"&&S.tab!=="monitor"&&S.tab!=="laws"&&S.tab!=="bylaws"&&S.tab!=="mentor"&&S.tab!=="cal"&&!T.find(x=>x.k===S.tab)) S.tab="dir";
   document.getElementById("tabs").innerHTML=T.map(g=>{
     const sel=S.tab===g.k||(g.k==="feed"&&S.tab==="cal")||(g.k==="res"&&(S.tab==="drills"||S.tab==="monitor"||S.tab==="laws"||S.tab==="bylaws"))||(g.k==="members"&&(S.tab==="mentor"||S.tab==="card"));
-    if(!g.sub) return `<div class="tabgrp"><button role="tab" type="button" data-tab="${g.k}" aria-selected="${sel}">${g.l}</button></div>`;
+    if(!g.sub) return `<div class="tabgrp"><button role="tab" type="button" data-tab="${g.k}" aria-selected="${sel}">${nl(g.l,g.sh)}</button></div>`;
     const open=UI.navMenu===g.k;
-    return `<div class="tabgrp"><button role="tab" type="button" data-go="${g.main}" aria-selected="${sel}">${g.l}</button><button type="button" class="caret" data-act="navmenu" data-grp="${g.k}" aria-haspopup="true" aria-expanded="${open}" aria-selected="${sel}" aria-label="${g.l} menu"><span aria-hidden="true">▾</span></button>${open?`<div class="subnav" role="menu">${g.sub.map(([go,lab,n])=>`<button type="button" role="menuitem" data-go="${go}">${lab}${n?`<span class="badge">${n}</span>`:""}</button>`).join("")}</div>`:""}</div>`}).join("");
+    return `<div class="tabgrp"><button role="tab" type="button" data-go="${g.main}" aria-selected="${sel}">${nl(g.l,g.sh)}</button><button type="button" class="caret" data-act="navmenu" data-grp="${g.k}" aria-haspopup="true" aria-expanded="${open}" aria-selected="${sel}" aria-label="${g.l} menu"><span aria-hidden="true">▾</span></button>${open?`<div class="subnav" role="menu">${g.sub.map(([go,lab,n])=>`<button type="button" role="menuitem" data-go="${go}">${lab}${n?`<span class="badge">${n}</span>`:""}</button>`).join("")}</div>`:""}</div>`}).join("");
 }
 function goTo(go){
   const[tab,sub]=go.split(":");
