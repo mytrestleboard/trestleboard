@@ -999,7 +999,9 @@ function homeView(){const r=PUB.joinRes;
   <p style="margin:0">If you are a Mason today, you probably have a different app, group chat or email list for every lodge, committee and appendant body you belong to. Each one works its own way, and none of them can see what the others are doing. The result is missed messages, confusion, and events scheduled right on top of each other because nobody can see what anyone else has going on.</p>
   <p style="margin:0"><b>My Trestle Board fixes that.</b> It is one home for every lodge, committee, group and appendant body.</p>
   <div class="cards"><div class="card" style="display:grid;gap:4px"><span class="t">One login</span><span class="s">Every lodge, committee, group and body you belong to, in one place instead of a pile of apps.</span></div><div class="card" style="display:grid;gap:4px"><span class="t">One calendar</span><span class="s">See what is already planned before you schedule, so events stop landing on top of each other.</span></div><div class="card" style="display:grid;gap:4px"><span class="t">One way to communicate</span><span class="s">Notices, posts and contact details work the same way everywhere, for every lodge and body.</span></div><div class="card" style="display:grid;gap:4px"><span class="t">Ready on day one</span><span class="s">Every Texas lodge is already listed, with its meeting time, address and map.</span></div></div>
+  ${inApp()?"":`<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button class="btn" type="button" data-act="install-app">Get the app</button><span class="hint" style="margin:0">Free for Android and iPhone. Puts My Trestle Board on your home screen.</span></div>`}
   <p class="hint" style="margin:0">Members and lodge officers: use the Member Portal in the menu. Everyone else: use the menu to find a lodge near you, see upcoming events, or learn how to become a Mason.</p></div>`}
+function inApp(){try{return matchMedia("(display-mode: standalone)").matches||navigator.standalone===true}catch(e){return false}}
 function publicView(){
   const act=PUB.sel?(PUB.selT==="l"?"lodges":"bodies"):PUB.tab;
   return `<div class="hero"><div class="hero-img"></div><div class="hero-in"><svg class="tlogo" id="hero-logo" viewBox="0 0 34 34" aria-hidden="true"></svg><b>My Trestle Board</b><small>One Trestle Board for all of Freemasonry.</small></div></div>
@@ -1770,6 +1772,7 @@ function renderAcct(){
     ${p?`<button class="mi" type="button" role="menuitem" data-act="go-profile">My profile</button>`:""}
     ${p?`<button class="mi" type="button" role="menuitem" data-act="go-messages" style="display:flex;justify-content:space-between;align-items:center">Messages${totalUnread()?`<span class="badge">${totalUnread()}</span>`:""}</button>`:""}
     <button class="mi" type="button" role="menuitem" data-act="go-account">Settings</button>
+    ${inApp()?"":`<button class="mi" type="button" role="menuitem" data-act="install-app">Get the app</button>`}
     <hr>
     <button class="mi" type="button" role="menuitem" data-act="signout">Sign out</button></div>`:""}`;
 }
@@ -2587,6 +2590,7 @@ document.addEventListener("click",e=>{
     case "ev-link-dupe":{const e=S.events.find(x=>x.id===t.dataset.id);if(e&&canManageScopeKey(t.dataset.sk)){evLink(e,t.dataset.sk);UI.adding=null;toast(`Added to ${scopeName(t.dataset.sk)}'s calendar`);render()}break}
     case "ev-dupe-anyway":{const f=t.closest("form");if(f){f.dataset.dupeok="1";const b=document.getElementById("ev-dupe");if(b)b.remove();f.requestSubmit()}break}
     case "scan-stop":scanStop();break;
+    case "install-app":UI.menu=false;render();if(window.tbShowInstall)tbShowInstall();break;
     case "signout":if(CLOUD)cloudSignOut();S.user="public";S.tab="feed";UI={editing:false,editProfile:false,adding:null,confirmDel:null};render();scrollTo(0,0);toast("Signed out");break;
     case "welcome-ok":{S.welcomed=S.welcomed||{};S.welcomed[S.user]=1;render();break}
     case "signin":{S.user="mark";S.tab="feed";UI={editing:false,editProfile:false,adding:null,confirmDel:null};const ml=myLodges().filter(n=>n!==0);if(ml.length)S.sel=ml[0];if(me().profile)S.prof=me().profile;render();scrollTo(0,0);toast("Signed in as Mark (demo)");break}
