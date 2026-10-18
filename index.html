@@ -106,6 +106,16 @@ header .brand{flex:0 1 auto;min-width:0}
 .fchip{display:inline-flex;gap:6px;align-items:center;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;text-decoration:none;color:inherit}
 .pollbar{position:relative;display:block;width:100%;text-align:left;border:1px solid var(--line);border-radius:8px;padding:9px 12px;background:transparent;color:inherit;cursor:pointer;overflow:hidden;margin:0 0 6px}.pollbar i{position:absolute;inset:0 auto 0 0;background:rgba(120,140,200,.25)}.pollbar span{position:relative;display:flex;justify-content:space-between;gap:10px}.pollbar.me{border-width:2px}
 .lbx{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:99;cursor:zoom-out}.lbx img{max-width:96vw;max-height:92vh}
+.crop-modal{position:fixed;inset:0;z-index:10000;background:rgba(10,14,22,.62);display:grid;place-items:center;padding:16px}
+.crop-box{background:var(--surface);color:var(--fg);border-radius:16px;padding:18px;display:grid;gap:12px;justify-items:center;max-width:340px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.crop-box h3{margin:0;font-family:var(--f-display);justify-self:start}.crop-box .hint{justify-self:start}
+.crop-stage{position:relative;touch-action:none;cursor:grab;border-radius:10px;overflow:hidden;background:repeating-conic-gradient(var(--sunk) 0 25%,var(--surface) 0 50%) 0 0/16px 16px;max-width:100%}
+.crop-stage canvas{width:100%;height:100%;display:block}
+.crop-mask{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 2px rgba(255,255,255,.9)}
+.crop-stage.circle .crop-mask{border-radius:50%;box-shadow:0 0 0 999px rgba(0,0,0,.45),inset 0 0 0 2px rgba(255,255,255,.9)}
+.crop-zoom{display:flex;gap:10px;align-items:center;width:100%;font-size:20px;color:var(--muted)}.crop-zoom input{flex:1}
+.crop-prev{display:flex;gap:12px;align-items:center;width:100%}.crop-prev canvas{border:1px solid var(--line);border-radius:10px}.crop-prev canvas.circle{border-radius:50%}
+.crop-prev canvas[width="96"]{width:64px;height:64px}.crop-prev canvas[width="40"]{width:30px;height:30px}
 .avatar.photo{background-size:cover;background-position:center;color:transparent}
 .avatar.big{width:64px;height:64px;font-size:22px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--surface)}
@@ -405,7 +415,7 @@ body.out .login .btn{width:100%;margin-top:6px}
   <nav class="tabs" role="tablist" id="tabs"></nav>
   <section id="view"></section>
 </main>
-<div class="tl-foot"><i></i><span><b>One Trestle Board for all of Freemasonry.</b> · Pilot v0.3 · build Oct 18 6:47 PM</span></div>
+<div class="tl-foot"><i></i><span><b>One Trestle Board for all of Freemasonry.</b> · Pilot v0.3 · build Oct 18 6:52 PM</span></div>
 <div id="tl-splash" hidden><div class="in"><svg class="tlogo" id="spl-logo" viewBox="0 0 34 34" aria-hidden="true"></svg><b>My Trestle Board</b><small>One Trestle Board for all of Freemasonry.</small></div></div>
 <div class="toast" id="toast" hidden></div>
 
@@ -2333,6 +2343,43 @@ function attachHtml(){
   const po=DRAFT.poll?`<div style="display:grid;gap:6px;border:1px solid var(--line);border-radius:8px;padding:10px"><b>Poll</b>${DRAFT.poll.map((o,i)=>`<input type="text" class="poll-opt" data-i="${i}" value="${esc(o)}" placeholder="Option ${i+1}" aria-label="Poll option ${i+1}">`).join("")}<div class="actions" style="margin:0">${DRAFT.poll.length<5?`<button class="btn small ghost" type="button" data-act="poll-add">Add option</button>`:""}<button class="btn small ghost" type="button" data-act="poll-off">Remove poll</button></div></div>`:"";
   return (th?`<div class="thumbs">${th}</div>`:"")+(fl?`<div style="display:flex;gap:8px;flex-wrap:wrap">${fl}</div>`:"")+po}
 function refreshAttach(){const el=document.getElementById("post-attach");if(el)el.innerHTML=attachHtml()}
+
+// Photo cropper: drag to move, slider / pinch / mouse wheel to zoom. Resolves a data URL, or null if cancelled.
+function cropImage(file,o){o=Object.assign({shape:"circle",out:320,fit:"cover",png:false,title:"Adjust your photo"},o||{});
+  return new Promise(res=>{const url=URL.createObjectURL(file),img=new Image();
+    img.onerror=()=>{URL.revokeObjectURL(url);toast("That file isn't an image I can read");res(null)};
+    img.onload=()=>{const V=280,W=img.naturalWidth,H=img.naturalHeight,
+        kMin=o.fit==="contain"?V/Math.max(W,H):V/Math.min(W,H),kMax=kMin*6;let k=o.fit==="contain"?kMin:kMin,x=0,y=0;
+      const wrap=document.createElement("div");wrap.className="crop-modal";wrap.setAttribute("role","dialog");wrap.setAttribute("aria-label",o.title);
+      wrap.innerHTML=`<div class="crop-box"><h3>${esc(o.title)}</h3><p class="hint" style="margin:0">Drag the picture to move it. Use the slider to zoom.</p>
+        <div class="crop-stage ${o.shape}" style="width:${V}px;height:${V}px"><canvas width="${V*2}" height="${V*2}"></canvas><div class="crop-mask"></div></div>
+        <div class="crop-zoom"><span aria-hidden="true">&minus;</span><input type="range" min="0" max="1000" value="0" aria-label="Zoom"><span aria-hidden="true">+</span></div>
+        <div class="crop-prev"><span class="hint" style="margin:0">How it will look:</span><canvas width="96" height="96" class="${o.shape}"></canvas><canvas width="40" height="40" class="${o.shape}"></canvas></div>
+        <div class="actions" style="justify-content:flex-end;margin:0"><button class="btn ghost" type="button" data-c="cancel">Cancel</button><button class="btn" type="button" data-c="save">Save</button></div></div>`;
+      document.body.appendChild(wrap);
+      const cv=wrap.querySelector(".crop-stage canvas"),cx=cv.getContext("2d"),sl=wrap.querySelector("input[type=range]"),pv=[...wrap.querySelectorAll(".crop-prev canvas")];
+      function clamp(){const w=W*k,h=H*k;
+        if(w>=V)x=Math.min(0,Math.max(V-w,x));else x=(V-w)/2;
+        if(h>=V)y=Math.min(0,Math.max(V-h,y));else y=(V-h)/2}
+      function paint(c,n){const g=c.getContext("2d"),s=n/V;g.clearRect(0,0,n,n);if(!o.png){g.fillStyle="#ffffff";g.fillRect(0,0,n,n)}g.imageSmoothingQuality="high";g.drawImage(img,x*s,y*s,W*k*s,H*k*s)}
+      function draw(){clamp();paint(cv,V*2);pv.forEach(c=>paint(c,c.width))}
+      function zoomTo(nk,px,py){nk=Math.max(kMin,Math.min(kMax,nk));px=px==null?V/2:px;py=py==null?V/2:py;x=px-(px-x)*nk/k;y=py-(py-y)*nk/k;k=nk;sl.value=Math.round(1000*Math.log(k/kMin)/Math.log(kMax/kMin));draw()}
+      k=kMin;x=(V-W*k)/2;y=(V-H*k)/2;draw();
+      sl.oninput=()=>zoomTo(kMin*Math.pow(kMax/kMin,sl.value/1000));
+      const st=wrap.querySelector(".crop-stage"),pts=new Map();let last=null,pinch=null;
+      const rel=e=>{const r=st.getBoundingClientRect();return[(e.clientX-r.left)*V/r.width,(e.clientY-r.top)*V/r.height]};
+      st.addEventListener("pointerdown",e=>{st.setPointerCapture(e.pointerId);pts.set(e.pointerId,rel(e));last=rel(e);if(pts.size===2){const[a,b]=[...pts.values()];pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1]),k}}});
+      st.addEventListener("pointermove",e=>{if(!pts.has(e.pointerId))return;const p=rel(e);pts.set(e.pointerId,p);
+        if(pts.size===2&&pinch){const[a,b]=[...pts.values()];zoomTo(pinch.k*Math.hypot(a[0]-b[0],a[1]-b[1])/pinch.d,(a[0]+b[0])/2,(a[1]+b[1])/2);return}
+        if(pts.size===1&&last){x+=p[0]-last[0];y+=p[1]-last[1];last=p;draw()}});
+      const up=e=>{pts.delete(e.pointerId);pinch=null;last=pts.size?[...pts.values()][0]:null};
+      st.addEventListener("pointerup",up);st.addEventListener("pointercancel",up);
+      st.addEventListener("wheel",e=>{e.preventDefault();const p=rel(e);zoomTo(k*Math.exp(-e.deltaY*0.0015),p[0],p[1])},{passive:false});
+      const done=v=>{URL.revokeObjectURL(url);document.removeEventListener("keydown",kd);wrap.remove();res(v)},
+        kd=e=>{if(e.key==="Escape")done(null)};document.addEventListener("keydown",kd);
+      wrap.addEventListener("click",e=>{const b=e.target.closest("[data-c]");if(e.target===wrap)done(null);if(!b)return;
+        if(b.dataset.c==="cancel")return done(null);const c=document.createElement("canvas");c.width=c.height=o.out;paint(c,o.out);done(o.png?c.toDataURL("image/png"):c.toDataURL("image/jpeg",.86))})}
+    img.src=url})}
 function readPhoto(file){return new Promise((res,rej)=>{const img=new Image(),url=URL.createObjectURL(file);
   img.onload=()=>{const m=900,r=Math.min(1,m/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*r);c.height=Math.round(img.height*r);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);res(c.toDataURL("image/jpeg",.72))};
   img.onerror=()=>{URL.revokeObjectURL(url);rej()};img.src=url})}
@@ -2950,13 +2997,11 @@ document.addEventListener("change",e=>{
     render();return}
   if(t.id==="scope"){S.calScope=t.value;render();return}
   if(t.dataset.sw===undefined&&t.id&&t.id.startsWith("pv-")){const s=document.querySelector(`[data-sw="${t.id}"]`);if(s)s.textContent=t.checked?"Public":"Private";return}
-  if(t.classList&&t.classList.contains("logo-file")){const f=t.files&&t.files[0],lk=t.dataset.lk,lid=t.dataset.lid;if(!f)return;const img=new Image(),url=URL.createObjectURL(f),png=/png|svg|gif|webp/.test(f.type);
-    img.onload=()=>{const m=Math.max(img.width,img.height,1),k=Math.min(1,320/m),c=document.createElement("canvas");c.width=Math.max(1,Math.round(img.width*k));c.height=Math.max(1,Math.round(img.height*k));c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);setLogo(lk,lid,png?c.toDataURL("image/png"):c.toDataURL("image/jpeg",.85))};
-    img.onerror=()=>{URL.revokeObjectURL(url);toast("That file isn't an image I can read")};img.src=url;return}
+  if(t.classList&&t.classList.contains("logo-file")){const f=t.files&&t.files[0],lk=t.dataset.lk,lid=t.dataset.lid;t.value="";if(!f)return;
+    cropImage(f,{shape:"square",out:320,fit:"contain",png:true,title:"Adjust the logo"}).then(d=>{if(d)setLogo(lk,lid,d)});return}
   if(t.id==="member-file"){const fs=[...(t.files||[])];const n=document.getElementById("member-file-note");const note=n?n.value.trim():"";if(fs.length)uploadMemberFiles(fs,note);return}
-  if(t.id==="photo-file"){const f=t.files&&t.files[0];if(!f)return;const img=new Image(),url=URL.createObjectURL(f);
-    img.onload=()=>{const c=document.createElement("canvas"),s=Math.min(img.width,img.height),N=160;c.width=c.height=N;c.getContext("2d").drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,N,N);URL.revokeObjectURL(url);const p=editTarget();if(!p)return;stashProfileForm(p);ct(p,"photo").v=c.toDataURL("image/jpeg",.82);logIt("updated their profile picture");render();toast("Photo updated.")};
-    img.onerror=()=>{URL.revokeObjectURL(url);toast("That file isn't an image I can read")};img.src=url;return}
+  if(t.id==="photo-file"){const f=t.files&&t.files[0];t.value="";if(!f)return;
+    cropImage(f,{shape:"circle",out:240,fit:"cover",title:"Adjust your photo"}).then(d=>{if(!d)return;const p=editTarget();if(!p)return;stashProfileForm(p);ct(p,"photo").v=d;logIt("updated their profile picture");render();toast("Photo updated.")});return}
   if(t.id==="cal-add"){if(t.value){const cur=[...calKeys()];if(!cur.includes(t.value))cur.push(t.value);S.calBodies=cur;S.calDay=null}render();return}
   if(t.id==="lodge-cal-gl"){S.lodgeCalGL=t.checked;render();return}
   if(t.dataset.perm){const r=S.roles[t.dataset.role];r.perms[t.dataset.perm]=t.checked?1:0;
