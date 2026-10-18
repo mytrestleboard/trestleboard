@@ -405,7 +405,7 @@ body.out .login .btn{width:100%;margin-top:6px}
   <nav class="tabs" role="tablist" id="tabs"></nav>
   <section id="view"></section>
 </main>
-<div class="tl-foot"><i></i><span><b>One Trestle Board for all of Freemasonry.</b> · Pilot v0.3 · build Oct 18 6:18 PM</span></div>
+<div class="tl-foot"><i></i><span><b>One Trestle Board for all of Freemasonry.</b> · Pilot v0.3 · build Oct 18 6:19 PM</span></div>
 <div id="tl-splash" hidden><div class="in"><svg class="tlogo" id="spl-logo" viewBox="0 0 34 34" aria-hidden="true"></svg><b>My Trestle Board</b><small>One Trestle Board for all of Freemasonry.</small></div></div>
 <div class="toast" id="toast" hidden></div>
 
@@ -723,8 +723,11 @@ let UI={editing:false,editProfile:false,adding:null,confirmDel:null};
 const LSTATUS=["Active","Under dispensation","Dormant","Charter arrested","Consolidated","Closed"];
 const lstat=l=>l.status||"Active";
 const lstatChip=l=>l.gl||lstat(l)==="Active"?"":`<span class="chip" style="background:#fdecea;color:#8a1c1c;border-color:#e8b4b0">${esc(lstat(l))}</span>`;
-const lodges=()=>[Object.assign({},GL,S.edits[0]||{}),...RAW.map(([n,name,d,city,county])=>{const I=INFO[n]||{};return Object.assign({n,name,d,city:I.c||city,county,zip:I.z||"",review:!!I.f,meet:PILOT[n]?.meet||I.m||"",addr:PILOT[n]?.addr||I.a||"",phone:(CON[n]||{}).p||"",email:(CON[n]||{}).e||"",mail:"",web:"",pilot:!!PILOT[n]?.pilot},S.edits[n]||{})})];
+const lodges=()=>[Object.assign({},GL,S.edits[0]||{}),...RAW.map(([n,name,d,city,county])=>{const I=INFO[n]||{};return Object.assign({n,name,d,gj:"TX",city:I.c||city,county,zip:I.z||"",review:!!I.f,meet:PILOT[n]?.meet||I.m||"",addr:PILOT[n]?.addr||I.a||"",phone:(CON[n]||{}).p||"",email:(CON[n]||{}).e||"",mail:"",web:"",pilot:!!PILOT[n]?.pilot},S.edits[n]||{})})];
 let L=lodges();
+// Grand Lodges (jurisdictions). Every lodge, and through it every district, sits under one. Texas only for now; add others here.
+const GLS=[{id:"TX",name:"Grand Lodge of Texas"}];
+const glOf=l=>(l&&l.gj)||"TX",inGL=l=>!S.gl||glOf(l)===S.gl;
 const byNum=n=>L.find(x=>x.n===+n);
 const dRank=d=>d==="Grand Lodge"?-1:(parseInt(d)||999);
 const districts=()=>[...new Set(L.map(x=>x.d))].sort((a,b)=>dRank(a)-dRank(b)||a.localeCompare(b));
@@ -1329,7 +1332,7 @@ function bodiesView(){
     <div class="list" id="blist">${bodyListHtml(list)}</div></div>`}
 
 /* ---------- directory ---------- */
-function filtered(){const q=S.q.trim().toLowerCase();return L.filter(l=>(!S.dist||l.d===S.dist)&&(!q||`${l.n} ${l.name} ${l.city} ${l.county}`.toLowerCase().includes(q)))}
+function filtered(){const q=S.q.trim().toLowerCase();return L.filter(l=>inGL(l)&&(!S.dist||l.d===S.dist)&&(!q||`${l.n} ${l.name} ${l.city} ${l.county}`.toLowerCase().includes(q)))}
 const sameName=(a,b)=>{const f=n=>normName(n).split(" ").filter(w=>w.length>1).join(" ");return !!f(a)&&f(a)===f(b)};
 const listedOfficer=(ref,title)=>ref&&ref.t==="l"&&byNum(ref.id)?manualOf(byNum(ref.id),title):((S.listedOff||{})[ref&&ref.id]||{})[title]||"";
 const nameMatches=()=>{const pr=myProfile();if(!pr||!signedIn()||pr.sample)return [];const out=[];if(!normName(pr.name))return out;
@@ -1361,13 +1364,15 @@ function dirView(){
     return `${lodgeCrumbs("lodge")}<div class="panel detail" id="detail">${lodgeDetail()}</div>`}
   if(S.distPage&&L.some(l=>l.d===S.distPage)){
     return `${lodgeCrumbs("dist")}<div class="panel detail" id="detail">${districtDetail(S.distPage)}</div>`}
-  const list=filtered(),ds=districts();
+  if(S.gl===undefined)S.gl="TX";
+  const list=filtered(),ds=districts().filter(d=>L.some(l=>l.d===d&&inGL(l))),tot=L.filter(inGL).length;
   return `${lodgeCrumbs("find")}<h3 class="sub" style="margin:0 0 10px">Find a lodge</h3><div class="panel">
     <div class="filters">
+      <select id="gjur" aria-label="Grand Lodge">${GLS.map(g=>`<option value="${g.id}" ${S.gl===g.id?"selected":""}>${esc(g.name)}</option>`).join("")}${GLS.length>1?`<option value="" ${!S.gl?"selected":""}>All Grand Lodges</option>`:""}</select>
       <input type="text" id="q" placeholder="Search name, number, city or county" value="${esc(S.q)}" aria-label="Search lodges">
       <select id="dist" aria-label="District"><option value="">All districts (${ds.length})</option>
         ${ds.map(d=>`<option value="${esc(d)}" ${S.dist===d?"selected":""}>${esc(dLabel(d))}</option>`).join("")}</select>
-      <div class="count">${list.length} of ${L.length} lodges</div></div>
+      <div class="count">${list.length} of ${tot} lodges</div></div>
     <div class="list" id="list">${listHtml(list)}</div></div>`;
 }
 const listHtml=list=>{if(!list.length)return `<div class="empty">No lodges match that search.</div>`;
@@ -2892,6 +2897,7 @@ document.addEventListener("change",e=>{
     if(!/pdf$/i.test(f.name)&&f.type!=="application/pdf"){toast("Please choose a PDF");return}
     if(f.size>15*1024*1024){toast("That file is over 15 MB");return}
     fput("bylaws:"+n,f).then(()=>{(S.bylaws=S.bylaws||{})[n]={name:f.name,size:f.size,at:new Date().toISOString(),by:(myProfile()||{}).name||""};logIt(`uploaded the bylaws of ${lname(l)}`);audit("l:"+l.n,"uploaded the bylaws ("+f.name+")");toast("Bylaws saved");render()}).catch(()=>toast("This browser wouldn't store the file"));return}
+  if(t.id==="gjur"){S.gl=t.value;S.dist="";render();return}
   if(t.id==="dist"){S.dist=t.value;render();return}
   if(t.id==="drill-pick"){S.drillSlug=t.value;render();scrollTo(0,0);return}
   if(t.classList&&t.classList.contains("app-status")){const a=ensureApps().find(x=>x.id===t.dataset.id),l=a&&byNum(a.lodge);if(a&&l&&canEdit(l)){audit("l:"+l.n,`changed ${a.name}'s petition status from ${a.status} to ${t.value}`);a.status=t.value;toast(`${a.name}: ${t.value}`)}render();return}
@@ -2923,7 +2929,7 @@ document.addEventListener("input",e=>{const f=e.target.closest&&e.target.closest
 document.addEventListener("change",e=>{const f=e.target.closest&&e.target.closest("form[data-add]");if(f&&(e.target.name==="b"||e.target.name==="a"))syncPos(f,e.target.name)});
 document.addEventListener("input",e=>{
   if(e.target.id==="bq"){S.bodyQ=e.target.value;const l=bodyFiltered();document.getElementById("blist").innerHTML=bodyListHtml(l);document.getElementById("bcount").textContent=bodyCount(l);save();return}
-  if(e.target.id==="q"){S.q=e.target.value;const list=filtered();document.getElementById("list").innerHTML=listHtml(list);document.querySelector(".count").textContent=`${list.length} of ${L.length} lodges`;save();}
+  if(e.target.id==="q"){S.q=e.target.value;const list=filtered();document.getElementById("list").innerHTML=listHtml(list);document.querySelector(".count").textContent=`${list.length} of ${L.filter(inGL).length} lodges`;save();}
   if(e.target.id==="msg-q"){S.msgQ=e.target.value;const pos=e.target.selectionStart;render();const i=document.getElementById("msg-q");i.focus();i.setSelectionRange(pos,pos);return}
   if(e.target.id==="msg-first"){S.msgFirst=e.target.value;return}
   if(e.target.id==="msg-group"){S.msgGroup=e.target.value;return}
