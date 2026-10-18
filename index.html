@@ -967,7 +967,7 @@ function pubSections(e,lod){
     const evs=pubRange(TODAY,addDays(TODAY,90)).filter(x=>evOn(x,lod?keyOf(e.n):key)).slice(0,8);
     out.push(`<div class="section"><h3 class="sub">Upcoming events</h3>${evs.length?evs.map(x=>pubEvent(x,true)).join(""):`<p class="hint">No upcoming public events listed yet.</p>`}</div>`)}
   if(!e.pubBoardOff){
-    const ps=S.posts.filter(p=>!p.sample&&!p.priv&&!p.evId&&(lod?(p.board.t==="lodge"&&p.board.id===e.n):postReachesEnt(p,e))).sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,5);
+    const ps=S.posts.filter(p=>!p.sample&&!p.priv&&!p.evId&&(lod?pOn(p,"l:"+e.n):postReachesEnt(p,e))).sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,5);
     out.push(`<div class="section"><h3 class="sub">Trestle Board</h3>${ps.length?ps.map(p=>`<div class="pubpost"><div class="isub">${esc(new Date(p.at).toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"}))}</div><div style="white-space:pre-wrap">${esc(p.text||"")}</div></div>`).join(""):`<p class="hint">Nothing posted yet.</p>`}</div>`)}
   return out.join("")}
 function pubDetail(){const lod=PUB.selT==="l",e=lod?byNum(+PUB.sel):entById(PUB.sel);if(!e)return "";
@@ -1169,7 +1169,7 @@ const bodyById=entById;
 const entParent=e=>e.parent||(e.t==="York Rite"&&e.k&&!e.lvl?"yr-"+e.k.toLowerCase():e.lvl==="body"?e.valley:null);
 const entChain=e=>{const o=[];let x=e;while(x){o.push(x.id);const pid=entParent(x);x=pid?entById(pid):null}return o};
 const boardEntId=b=>b.t==="orient"?"sr-texas":(b.t==="valley"||b.t==="abody"||b.t==="ent")?b.id:null;
-const postReachesEnt=(p,e)=>{const id=boardEntId(p.board);return !!id&&entChain(e).includes(id)};
+const postReachesEnt=(p,e)=>pBoards(p).some(b=>{const id=boardEntId(b);return !!id&&entChain(e).includes(id)});
 const bodyTitle=b=>b.lvl==="master"?b.name:b.lvl==="valley"?"Valley of "+b.city:b.t==="York Rite"?`${b.name} ${b.k} No. ${b.n}`:b.name;
 const NOCITY="Traveling or not listed",cityOf=e=>(!e.city||e.city==="Traveling")?NOCITY:e.city;
 const CITYS=(()=>{const m={},KO={Chapter:0,Council:1,Commandery:2};
@@ -1423,7 +1423,7 @@ function renderEmbed(f,k){
     const ev=S.events.filter(e=>e.web&&evOn(e,k)&&(e.vis||"public")==="public"&&e.date>=TODAY).sort((a,b)=>(a.date+(a.time||"")).localeCompare(b.date+(b.time||""))).slice(0,20);
     body=ev.length?ev.map(e=>`<div class="ei"><b>${esc2(e.title)}</b><div class="d">${esc2(new Date(e.date+"T12:00").toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"}))}${e.time?" at "+esc2(new Date("2000-01-01T"+e.time).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})):""}</div>${e.notes?`<div>${esc2(e.notes)}</div>`:""}</div>`).join(""):`<p style="opacity:.7">No upcoming events.</p>`}
   else{
-    const ps=S.posts.filter(p=>p.web&&postScope(p.board)===k).sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,15);
+    const ps=S.posts.filter(p=>p.web&&pBoards(p).some(b=>postScope(b)===k)).sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,15);
     body=ps.length?ps.map(p=>`<div class="ei"><div class="d">${esc2(new Date(p.at).toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"}))}</div><div style="white-space:pre-wrap">${esc2(p.text||"")}</div>${(p.pics||[]).slice(0,2).map(s=>`<img src="${esc2(typeof s==="string"?s:s.src||"")}" alt="" style="max-width:100%;border-radius:6px;margin-top:6px">`).join("")}</div>`).join(""):`<p style="opacity:.7">No news yet.</p>`}
   document.body.innerHTML=`<style>body{margin:0;padding:12px;font:15px/1.5 system-ui,sans-serif;background:#fff;color:#1a1a1a}@media (prefers-color-scheme:dark){body{background:#12151c;color:#e8e8e8}}.ei{padding:12px 0;border-bottom:1px solid rgba(128,128,128,.3)}.d{opacity:.7;font-size:13px}.f{margin-top:10px;font-size:12px;opacity:.6}</style>${body}<div class="f">Powered by My Trestle Board</div>`;
 }
@@ -2141,6 +2141,11 @@ function profileDetail(id){
 
 /* ---------- feed ---------- */
 const bKey=b=>b.t==="gl"?"gl":b.t==="orient"?"or":b.t[0]+":"+b.id;
+const pAlso=p=>Array.isArray(p.also)?p.also:[];
+const pBoards=p=>[p.board,...pAlso(p).map(bFromKey)];
+const pOn=(p,k)=>bKey(p.board)===k||pAlso(p).includes(k);
+function pLink(p,k){if(!p||pOn(p,k))return false;p.also=pAlso(p).concat([k]);logIt(`shared a post to the ${bName(bFromKey(k))} Trestle Board`);return true}
+function pUnlink(p,k){if(!p||!pAlso(p).includes(k))return false;p.also=pAlso(p).filter(x=>x!==k);return true}
 const bFromKey=k=>k==="gl"?{t:"gl"}:k==="or"?{t:"orient"}:k.startsWith("v:")?{t:"valley",id:k.slice(2)}:k.startsWith("a:")?{t:"abody",id:k.slice(2)}:k.startsWith("e:")?{t:"ent",id:k.slice(2)}:k.startsWith("g:")?{t:"group",id:k.slice(2)}:{t:k[0]==="l"?"lodge":"district",id:k[0]==="l"?+k.slice(2):k.slice(2)};
 function bName(b){if(b.t==="group"){const g=gById(b.id);return g?g.name:"Trestle Board"}if(b.t==="orient")return "Texas Scottish Rite";if(b.t==="valley")return "Valley of "+entById(b.id).city;if(b.t==="abody")return entById(b.id).name;if(b.t==="ent")return bodyTitle(entById(b.id));return b.t==="gl"?"Grand Lodge of Texas":b.t==="district"?"District "+b.id:lname(byNum(b.id))}
 function bReach(b){if(b.t==="group")return "The people on this Trestle Board";if(b.t==="orient")return "Every Valley and body of the Texas Scottish Rite";if(b.t==="valley")return "This Valley and its four bodies";if(b.t==="abody"||b.t==="ent")return "Members and followers of this body";return b.t==="gl"?"Every lodge statewide":b.t==="district"?`Every lodge in District ${b.id}`:"Members and followers of this lodge"}
@@ -2162,13 +2167,15 @@ function canSeePost(p){
   if(!signedIn()) return false;
   if(p.by===S.user) return true;
   if(p.evId){const e=S.events.find(x=>x.id===p.evId);if(e&&e.vis==="members"){if(e.k){if(!evMemberOf(e.k))return false}else{const l=byNum(e.n);if(!l||!canSeePrivate(l)) return false}}}
+  return pBoards(p).some(b=>canSeeOn(b))}
+function canSeeOn(board){const p={board};
   if(p.board.t==="gl") return true;
   if(p.board.t==="group"){const g=gById(p.board.id);return !!g&&(grpMine(g)||grpManage(g))}
   if(p.board.t==="orient"||p.board.t==="valley"||p.board.t==="abody"||p.board.t==="ent"){const id=boardEntId(p.board);const mp=myProfile();return ((S.bodyFollows||{})[S.user]||[]).map(entById).some(f=>f&&entChain(f).includes(id))||((mp&&mp.ents)||[]).some(x=>!x.pending&&entById(x.id)&&entChain(entById(x.id)).includes(id))}
   if(p.board.t==="lodge"){const l=byNum(p.board.id);return isMember(l)||following(l)}
   return me().district===p.board.id||myWorld().some(l=>l.d===p.board.id);
 }
-function postReachesLodge(p,l){return p.board.t==="gl"||(p.board.t==="district"&&p.board.id===l.d)||(p.board.t==="lodge"&&p.board.id===l.n)}
+function postReachesLodge(p,l){return pBoards(p).some(b=>b.t==="gl"||(b.t==="district"&&b.id===l.d)||(b.t==="lodge"&&b.id===l.n))}
 function ago(iso){const s=(Date.now()-new Date(iso))/1000;if(s<60)return"just now";if(s<3600)return Math.floor(s/60)+" min ago";if(s<86400)return Math.floor(s/3600)+" hr ago";return new Date(iso).toLocaleDateString([], {month:"short",day:"numeric"})}
 const REACTS=[["like","👍","Like"],["heart","❤️","Love"]];
 function who(by){const u=USERS.find(x=>x.id===by),pid=u?.profile||(S.profiles[by]?by:null),pr=pid?S.profiles[pid]:null;return{name:pr?.name||u?.label||"Member",av:pid?avatarFor(pid,"sm"):`<span class="avatar sm">${initials(u?.label||"M")}</span>`}}
@@ -2198,6 +2205,11 @@ function evCard(p){
     <div class="meta">${fmtTime(e.time)} · ${esc(evWhere(e))} · ${esc(e.type)}</div>${e.notes?`<div class="meta">${esc(e.notes)}</div>`:""}
     <div class="acts" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;align-items:center">${rsvpHtml(e)}<button class="btn ghost small" type="button" data-act="ev-cal" data-id="${e.id}">View on calendar</button><a class="btn ghost small" href="${gcal(e)}" target="_blank" rel="noopener">Add to Google Calendar</a></div></div></div>`;
 }
+function postShareActs(p){if(p.evId||p.sample)return "";const mine=boardsICanPost(),add=mine.filter(b=>!pOn(p,bKey(b))),rm=mine.filter(b=>pAlso(p).includes(bKey(b)));if(!add.length&&!rm.length)return "";let h="";
+  if(add.length&&add.length<=2)h+=add.map(b=>`<button class="btn ghost small" type="button" data-act="post-also" data-id="${p.id}" data-k="${esc(bKey(b))}">Share to ${esc(bName(b))}</button>`).join("");
+  else if(add.length)h+=`<select class="post-also-sel" data-id="${p.id}" aria-label="Share to a Trestle Board"><option value="">Share to another board…</option>${add.map(b=>`<option value="${esc(bKey(b))}">${esc(bName(b))}</option>`).join("")}</select>`;
+  h+=rm.map(b=>`<button class="btn ghost small" type="button" data-act="post-unalso" data-id="${p.id}" data-k="${esc(bKey(b))}">Remove from ${esc(bName(b))}</button>`).join("");
+  return `<div class="actions" style="margin:0;gap:6px">${h}</div>`}
 function postCard(p){
   const w=who(p.by);
   const mine=p.by===S.user, canDel=mine||can("editAnyLodge")||(p.board.t==="group"&&canManageScope("g:"+p.board.id))||(p.board.t==="lodge"&&canEdit(byNum(p.board.id)));
@@ -2205,9 +2217,10 @@ function postCard(p){
   return `<article class="panel pad" style="display:grid;gap:8px">
     <div style="display:flex;gap:10px;align-items:center">${w.av}
       <div style="min-width:0;flex:1"><b>${esc(w.name)}</b> <span class="isub">${p.evId?"added an event · ":"· "}${ago(p.at)}</span><br>
-      <span class="chip ${p.board.t==="gl"?"acc":p.board.t==="district"?"pilot":"mem"}">${esc(bName(p.board))}</span> <span class="isub">${esc(bReach(p.board))}</span></div>
+      <span class="chip ${p.board.t==="gl"?"acc":p.board.t==="district"?"pilot":"mem"}">${esc(bName(p.board))}</span>${pAlso(p).map(k=>`<span class="chip">${esc(bName(bFromKey(k)))}</span>`).join(" ")} <span class="isub">${pAlso(p).length?"":esc(bReach(p.board))}</span></div>
       ${mine&&!p.evId&&UI.editPost!==p.id?`<button class="xbtn" type="button" data-act="post-edit" data-id="${p.id}">Edit</button>`:""}${canDel?`<button class="xbtn" type="button" data-act="del-post" data-id="${p.id}">Delete</button>`:""}</div>
     ${p.evId?evCard(p):UI.editPost===p.id?`<form data-editpost="${p.id}" style="display:grid;gap:8px"><textarea name="t" rows="4" aria-label="Edit your post">${esc(p.text)}</textarea><div class="actions" style="margin:0"><button class="btn small" type="submit">Save</button><button class="btn ghost small" type="button" data-act="post-edit-cancel">Cancel</button></div></form>${postExtras(p)}`:`<div style="white-space:pre-wrap;overflow-wrap:anywhere">${linkify(p.text)}</div>${p.edited?`<span class="isub">Edited ${esc(ago(p.edited))}</span>`:""}${postExtras(p)}`}
+    ${postShareActs(p)}
     <div class="rxrow">${rxBar(p,p.id)}<button type="button" class="rx ${open?"on":""}" data-act="cm-toggle" data-post="${p.id}" aria-expanded="${open}">💬 ${cms.length?`${cms.length} ${cms.length===1?"comment":"comments"}`:"Comment"}</button></div>
     ${open?`<div class="cmlist">${cms.map(c=>commentHtml(p,c)).join("")}
       <form class="cmform" data-cmform="${p.id}"><input type="text" name="c" placeholder="Write a comment..." aria-label="Write a comment" autocomplete="off"><button class="btn small" type="submit">Post</button></form></div>`:""}</article>`;
@@ -2347,7 +2360,7 @@ function feedView(){
   const atG=S.feedFilter.startsWith("ag:")?gById(S.feedFilter.slice(3)):null;
   if(S.feedFilter!=="all"&&!atL&&!atB&&!atD&&!atG) S.feedFilter="all";
   if(S.postToFor!==S.feedFilter){S.postToFor=S.feedFilter;const fk=atG?"g:"+atG.id:atL?(atL.n===0?"gl":"l:"+atL.n):atD?"d:"+atD:atB?entBoardKey(atB):"";if(fk&&can_.some(b=>bKey(b)===fk))S.postTo=fk}
-  const shown=atG?visible.filter(p=>p.board.t==="group"&&p.board.id===atG.id):atD?visible.filter(p=>p.board.t==="district"&&p.board.id===atD):atB?visible.filter(p=>postReachesEnt(p,atB)):atL?visible.filter(p=>postReachesLodge(p,atL)):S.feedBoards?visible.filter(p=>S.feedBoards.includes(bKey(p.board))):visible;
+  const shown=atG?visible.filter(p=>pOn(p,"g:"+atG.id)):atD?visible.filter(p=>pOn(p,"d:"+atD)):atB?visible.filter(p=>postReachesEnt(p,atB)):atL?visible.filter(p=>postReachesLodge(p,atL)):S.feedBoards?visible.filter(p=>pBoards(p).some(b=>S.feedBoards.includes(bKey(b)))):visible;
   const grp=(t,label)=>{const g=can_.filter(b=>b.t===t);return g.length?`<optgroup label="${label}">${g.map(b=>`<option value="${bKey(b)}" ${bKey(b)===S.postTo?"selected":""}>${esc(bName(b))}</option>`).join("")}</optgroup>`:""};
   return `<div class="stack" style="max-width:680px">
     ${feedTabs()}
@@ -2365,6 +2378,7 @@ function feedView(){
           <select id="post-to" aria-label="Post to">${grp("lodge","My lodges")}${grp("district","District")}${grp("gl","Grand Lodge")}${grp("orient","Texas Scottish Rite")}${grp("valley","Scottish Rite Valleys")}${grp("abody","Scottish Rite bodies")}${grp("ent","York Rite and Shrine")}${grp("group","Committees and groups")}</select></label>`}
         <button class="btn small" type="submit">Post</button></div>
       <p class="hint" style="margin:0" id="post-reach">Reaches: ${esc(bReach(bFromKey(S.postTo)))}.</p>
+      ${can_.length>1?`<details id="post-also-wrap"><summary class="hint" style="cursor:pointer">Also post to other Trestle Boards</summary><div style="display:grid;gap:6px;margin-top:6px">${can_.map(b=>`<label class="hint" style="display:flex;gap:8px;align-items:center;margin:0"><input type="checkbox" class="post-also" value="${esc(bKey(b))}" ${bKey(b)===S.postTo?"disabled":""}> ${esc(bName(b))}</label>`).join("")}</div><p class="hint" style="margin:6px 0 0">One post, shown on each board you tick. No copies.</p></details>`:""}
       <label id="post-web-wrap" style="display:${S.postTo&&webOn(postScope(bFromKey(S.postTo)))?"flex":"none"};gap:8px;align-items:center"><input type="checkbox" id="post-web"> Also show on our website</label>
     </form>`:`<div class="panel pad hint">You can read the boards you follow, but there's no board you can post to yet.</div>`}
     ${atL||atB||atD||atG?"":feedBar()}
@@ -2516,6 +2530,8 @@ document.addEventListener("click",e=>{
     case "cloud-signup":cloudSignUp();break;
     case "recheck-card":{const bx=document.getElementById("recheck-box");if(bx){bx.style.display=bx.style.display==="none"?"block":"none"}break}
     case "scan-card":scanCard();break;
+    case "post-also":{const p=S.posts.find(x=>x.id===t.dataset.id);if(p&&boardsICanPost().some(b=>bKey(b)===t.dataset.k)&&pLink(p,t.dataset.k)){toast(`Shared to ${bName(bFromKey(t.dataset.k))}`);render()}break}
+    case "post-unalso":{const p=S.posts.find(x=>x.id===t.dataset.id);if(p&&boardsICanPost().some(b=>bKey(b)===t.dataset.k)&&pUnlink(p,t.dataset.k)){toast("Removed");render()}break}
     case "ev-also":{const e=S.events.find(x=>x.id===t.dataset.id);if(e&&canManageScopeKey(t.dataset.sk)&&evLink(e,t.dataset.sk)){toast(`Added to ${scopeName(t.dataset.sk)}'s calendar`);render()}break}
     case "ev-unalso":{const e=S.events.find(x=>x.id===t.dataset.id);if(e&&canManageScopeKey(t.dataset.sk)&&evUnlink(e,t.dataset.sk)){toast(`Removed from ${scopeName(t.dataset.sk)}'s calendar`);render()}break}
     case "ev-merge":{const a=S.events.find(x=>x.id===t.dataset.id),b=S.events.find(x=>x.id===t.dataset.into);if(a&&b&&evCanEdit(a)&&evMerge(a,b)){toast("Merged into one event");render()}break}
@@ -2798,9 +2814,10 @@ document.addEventListener("submit",e=>{
     const board=bFromKey(v("post-to")); if(!boardsICanPost().some(b=>bKey(b)===bKey(board))){toast("You can't post to that board");return}
     const np={id:"p"+Date.now().toString(36),by:S.user,board,text,at:new Date().toISOString()};
     if(DRAFT.pics.length)np.pics=DRAFT.pics;if(DRAFT.files.length)np.files=DRAFT.files;if(poll)np.poll=poll;
+    {const also=[...f.querySelectorAll(".post-also:checked")].map(x=>x.value).filter(k=>k!==bKey(board)&&boardsICanPost().some(b=>bKey(b)===k));if(also.length)np.also=also}
     {const wb=document.getElementById("post-web");if(wb&&wb.checked&&webOn(postScope(board))&&!poll){np.web=true}}
     DRAFT.pics=[];DRAFT.files=[];DRAFT.poll=null;S.posts.push(np);
-    S.postTo=bKey(board); logIt(`posted to the ${bName(board)} Trestle Board`); toast(`Posted to ${bName(board)}`); render(); return;
+    S.postTo=bKey(board); logIt(`posted to the ${bName(board)} Trestle Board`); toast(np.also?`Posted to ${bName(board)} and ${np.also.length} more`:`Posted to ${bName(board)}`); render(); return;
   }
   if(f.id==="newrole"){
     const name=v("nr-name"); if(!name){toast("Give the role a name");return}
@@ -2810,6 +2827,7 @@ document.addEventListener("submit",e=>{
 });
 document.addEventListener("change",e=>{
   const t=e.target;
+  if(t.classList&&t.classList.contains("post-also-sel")){const p=S.posts.find(x=>x.id===t.dataset.id),k=t.value;if(p&&k&&boardsICanPost().some(b=>bKey(b)===k)&&pLink(p,k)){toast(`Shared to ${bName(bFromKey(k))}`);render()}return}
   if(t.classList&&t.classList.contains("ev-also-sel")){const ev=S.events.find(x=>x.id===t.dataset.id),sk=t.value;if(ev&&sk&&canManageScopeKey(sk)&&evLink(ev,sk)){toast(`Added to ${scopeName(sk)}'s calendar`);render()}return}
   if(t.classList&&t.classList.contains("boff-sel")){const x=document.getElementById("boffm-"+t.dataset.i);if(x){x.style.display=t.value==="__manual"?"":"none";if(t.value==="__manual")x.focus()}return}
   if(t.classList&&t.classList.contains("off-sel")){const x=document.getElementById("offt-"+t.dataset.i);if(x){x.style.display=t.value==="__manual"?"":"none";if(t.value==="__manual")x.focus()}return}
