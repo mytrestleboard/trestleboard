@@ -415,7 +415,7 @@ body.out .login .btn{width:100%;margin-top:6px}
   <nav class="tabs" role="tablist" id="tabs"></nav>
   <section id="view"></section>
 </main>
-<div class="tl-foot"><i></i><span><b>One Trestle Board for all of Freemasonry.</b> · Pilot v0.3 · build Oct 18 7:05 PM</span></div>
+<div class="tl-foot"><i></i><span><b>One Trestle Board for all of Freemasonry.</b> · Pilot v0.3 · build Oct 18 7:14 PM</span></div>
 <div id="tl-splash" hidden><div class="in"><svg class="tlogo" id="spl-logo" viewBox="0 0 34 34" aria-hidden="true"></svg><b>My Trestle Board</b><small>One Trestle Board for all of Freemasonry.</small></div></div>
 <div class="toast" id="toast" hidden></div>
 
@@ -1609,8 +1609,8 @@ function lodgeDetail(){
     return !signedIn()?`<p class="locked">🔒 Sign in to see this lodge's Trestle Board.</p>`:ps.length?`<div class="stack" style="padding:0;gap:10px">${ps.map(postCard).join("")}</div><button class="linkbtn" type="button" data-act="lodge-board" data-n="${l.n}">Open ${esc(lname(l))}'s Trestle Board</button>`:`<p class="hint">Nothing posted here yet. Lodge, District ${esc(l.d)} and Grand Lodge posts will show up here.</p>`})()}</div>`;
 }
 function personCard(id,p,n){const m=p.lodges.find(x=>x.n===n);const lo=n?byNum(n):null,off=lo&&!lo.gl?officeIn(p,lo):"";const cur=off?{title:off}:((n===0?p.current.find(c=>/grand lodge/i.test(c.body)):null)||p.current[0]);
-  return `<button type="button" class="card" data-person="${id}"><span style="display:flex;gap:10px;align-items:center"><span class="avatar">${initials(p.name)}</span><span class="t">${esc(p.name)}</span></span>
-  <span class="isub">${cur?esc(cur.title):"Member"}${m?.since?` · since ${esc(m.since)}`:""}${p.sample?` · <b>Test profile</b>`:""}</span></button>`}
+  return `<button type="button" class="card" data-person="${id}"><span style="display:flex;gap:10px;align-items:center"><span class="avatar">${initials(dispName(p))}</span><span class="t">${esc(dispName(p))}</span></span>
+  <span class="isub">${p.nick?esc(p.name)+" · ":""}${cur?esc(cur.title):"Member"}${m?.since?` · since ${esc(m.since)}`:""}${p.sample?` · <b>Test profile</b>`:""}</span></button>`}
 function editLodgeForm(l){
   const moveOk=can("editAnyLodge");
   return `<div class="eyebrow">Editing</div><h2 class="title">${esc(lname(l))}</h2>
@@ -1780,8 +1780,8 @@ function newMsgForm(){
 function avatarFor(id,cls){
   const p=S.profiles[id]; if(!p) return `<span class="avatar ${cls||""}">?</span>`;
   const ph=ct(p,"photo");
-  if(ph.v&&canSeeField(id,"photo")) return `<span class="avatar photo ${cls||""}" style="background-image:url('${ph.v}')" role="img" aria-label="${esc(p.name)}"></span>`;
-  return `<span class="avatar ${cls||""}">${initials(p.name)}</span>`;
+  if(ph.v&&canSeeField(id,"photo")) return `<span class="avatar photo ${cls||""}" style="background-image:url('${ph.v}')" role="img" aria-label="${esc(dispName(p))}"></span>`;
+  return `<span class="avatar ${cls||""}">${initials(dispName(p))}</span>`;
 }
 function renderAcct(){
   const el=document.getElementById("acct"); if(!el) return;
@@ -1815,7 +1815,7 @@ function readContact(p,pre,get){
   const av=segVal("pv-address");for(const f of ADDR){const c=ct(p,f);c.v=get(pre+"-"+f);c.vis=av}
 }
 const segVal=id=>(document.querySelector(`input[name="${id}"]:checked`)||{}).value||"private";
-function stashProfileForm(p){const g=id=>document.getElementById(id);if(!g("contactform"))return;const nm=g("c-name")?(g("c-name").value||"").trim():"";if(nm)p.name=nm;readContact(p,"c",id=>(g(id).value||"").trim());ct(p,"photo").vis=segVal("pv-photo")}
+function stashProfileForm(p){const g=id=>document.getElementById(id);if(!g("contactform"))return;const nm=g("c-name")?(g("c-name").value||"").trim():"";if(nm)p.name=nm;if(g("c-nick"))p.nick=(g("c-nick").value||"").trim();readContact(p,"c",id=>(g(id).value||"").trim());ct(p,"photo").vis=segVal("pv-photo")}
 function profileView(){
   if(!signedIn()) return `<div class="panel pad empty">Sign in to see profiles.</div>`;
   return `<div class="stack" style="max-width:760px"><div class="actions" style="margin:0"><button class="btn ghost small" type="button" data-act="profile-back">← Back</button></div><div class="panel pad detail" id="detail">${profileDetail(S.prof)}</div></div>`;
@@ -2217,7 +2217,7 @@ function profileDetail(id){
   const ph=ct(p,"photo");
   const pic=ed?(ph.v?`<span class="avatar photo big" style="background-image:url('${ph.v}')" role="img" aria-label="${esc(p.name)}"></span>`:`<span class="avatar big">${initials(p.name)}</span>`):avatarFor(id,"big");
   const picCtl=canEd?`<div style="display:grid;gap:6px;justify-items:center;margin-top:8px"><label class="btn ghost small" style="cursor:pointer">${ph.v?"Change photo":"Add photo"}<input type="file" id="photo-file" accept="image/*" hidden></label>${ph.v?`<button class="linkbtn" type="button" data-act="photo-remove">Remove photo</button>`:""}${ed?`<div class="hint" style="margin:4px 0 0;text-align:center">Who can see your photo</div>${segHtml("pv-photo",vOf(ph))}`:""}</div>`:"";
-  return `<div class="profile-head" style="align-items:flex-start"><div style="display:grid;justify-items:center">${pic}${picCtl}</div><div style="min-width:0;flex:1 1 260px"><div class="eyebrow">Masonic record</div>${ed?`<input type="text" id="c-name" value="${esc(p.name)}" aria-label="Name" style="font-size:22px;font-family:var(--f-display);width:100%;max-width:420px;margin:2px 0 4px">`:`<h2 class="title" style="margin:2px 0 4px">${esc(p.name)}</h2>`}
+  return `<div class="profile-head" style="align-items:flex-start"><div style="display:grid;justify-items:center">${pic}${picCtl}</div><div style="min-width:0;flex:1 1 260px"><div class="eyebrow">Masonic record</div>${ed?`<input type="text" id="c-name" value="${esc(p.name)}" aria-label="Full name" style="font-size:22px;font-family:var(--f-display);width:100%;max-width:420px;margin:2px 0 4px"><label style="display:grid;gap:3px;max-width:420px;margin:0 0 6px"><span class="hint" style="margin:0">Profile name (optional): what you go by. Your posts and events show this name instead of your full name.</span><input type="text" id="c-nick" value="${esc(p.nick||"")}" placeholder="e.g. Buck, or Dr. Strauss" maxlength="40" aria-label="Profile name"></label>`:p.nick?`<h2 class="title" style="margin:2px 0 0">${esc(p.nick)}</h2><p style="margin:0 0 4px"><b>${esc(p.name)}</b> <span class="isub">full name</span></p>`:`<h2 class="title" style="margin:2px 0 4px">${esc(p.name)}</h2>`}
     <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="chip acc">${esc(DTITLE[degP(p)]||"Degree not on record")}</span>${p.sample?`<span class="chip pilot">Test profile</span><span class="hint" style="flex-basis:100%;margin:2px 0 0">This is a test profile waiting for someone to delete it. It does not count as a real member or officer.</span>`:""}${own?`<span class="chip mem">This is you</span>`:""}</div></div></div>
   ${canEd?`<div class="actions" style="margin-top:14px">${ed?`<button class="btn" type="button" data-act="done-prof">Done editing</button><span class="hint" style="margin:0 0 0 10px">Your changes save as you go.</span>`:`<button class="btn ghost" type="button" data-act="edit-prof">${own?"Edit my profile":"Edit this profile (admin)"}</button>`}</div>`:""}
   <div class="section"><h3 class="sub">Degree on record</h3>${canSetDegree(id)?`<label style="display:grid;gap:4px;max-width:320px"><select id="prof-degree" data-pid="${id}" aria-label="Degree on record">${Object.keys(DTITLE).map(k=>`<option value="${k}" ${degP(p)===k?"selected":""}>${DTITLE[k]}</option>`).join("")}</select><span class="hint">Set by the lodge secretary or another officer who can edit this lodge. It decides what he can see and do on My Trestle Board. An Entered Apprentice or Fellowcraft belongs to the lodge that made him and can follow other lodges but cannot join one without a Grand Lodge dispensation.</span></label>`:`<p style="margin:0"><b>${esc(DTITLE[degP(p)]||"Not on record")}</b></p><p class="hint" style="margin:4px 0 0">Your lodge secretary keeps this on record. ${degP(p)==="MM"?"":`It limits what you can see and do: mentoring (you can have a mentor but can't be one), resources and drills for your degree only.`}</p>`}</div>
@@ -2277,7 +2277,8 @@ function canSeeOn(board){const p={board};
 function postReachesLodge(p,l){return pBoards(p).some(b=>b.t==="gl"||(b.t==="district"&&b.id===l.d)||(b.t==="lodge"&&b.id===l.n))}
 function ago(iso){const s=(Date.now()-new Date(iso))/1000;if(s<60)return"just now";if(s<3600)return Math.floor(s/60)+" min ago";if(s<86400)return Math.floor(s/3600)+" hr ago";return new Date(iso).toLocaleDateString([], {month:"short",day:"numeric"})}
 const REACTS=[["like","👍","Like"],["heart","❤️","Love"]];
-function who(by){const u=USERS.find(x=>x.id===by),pid=u?.profile||(S.profiles[by]?by:null),pr=pid?S.profiles[pid]:null;return{name:pr?.name||u?.label||"Member",av:pid?avatarFor(pid,"sm"):`<span class="avatar sm">${initials(u?.label||"M")}</span>`}}
+const dispName=p=>p?((p.nick||"").trim()||p.name||""):"";
+function who(by){const u=USERS.find(x=>x.id===by),pid=u?.profile||(S.profiles[by]?by:null),pr=pid?S.profiles[pid]:null;return{name:(pr?dispName(pr):"")||u?.label||"Member",av:pid?avatarFor(pid,"sm"):`<span class="avatar sm">${initials(u?.label||"M")}</span>`}}
 function rxBar(item,pid,cid){
   const r=item.react||{};
   return `<span class="rxbar">${REACTS.map(([k,em,lab])=>{const ids=r[k]||[],on=ids.includes(S.user);return `<button type="button" class="rx ${on?"on":""}" data-act="react" data-post="${pid}" ${cid?`data-cm="${cid}"`:""} data-kind="${k}" aria-pressed="${on}" aria-label="${lab}${ids.length?`, ${ids.length}`:""}">${em}${ids.length?` ${ids.length}`:` ${lab}`}</button>`}).join("")}</span>`;
@@ -2351,13 +2352,13 @@ const DRAFT={pics:[],files:[],poll:null,tags:{}};
 const pTags=p=>Array.isArray(p.tags)?p.tags:[];
 const taggedMe=p=>!!(me().profile&&pTags(p).includes(me().profile));
 function mentionQuery(ta){const v=ta.value.slice(0,ta.selectionStart||0);const m=v.match(/(^|\s)@([^@\n]{0,40})$/);return m?{q:m[2],start:v.length-m[2].length-1}:null}
-function mentionMatches(q){const n=normName(q);if(!n&&q!=="")return [];const seen=new Set();return Object.entries(S.profiles).filter(([id,p])=>p&&p.name&&!p.sample&&(!CLOUD||LIVE_PID.test(id))&&id!==me().profile&&normName(p.name).includes(n)).slice(0,6)}
+function mentionMatches(q){const n=normName(q);if(!n&&q!=="")return [];const seen=new Set();return Object.entries(S.profiles).filter(([id,p])=>p&&p.name&&!p.sample&&(!CLOUD||LIVE_PID.test(id))&&id!==me().profile&&(normName(p.name).includes(n)||normName(dispName(p)).includes(n))).slice(0,6)}
 function mentionBox(ta){const box=document.getElementById("post-mention");if(!box)return;const mq=mentionQuery(ta);if(!mq){box.innerHTML="";return}
-  const hits=mentionMatches(mq.q);box.innerHTML=hits.length?`<div class="panel" style="padding:4px;display:grid">${hits.map(([id,p])=>`<button type="button" class="item" data-mention="${id}" data-mstart="${mq.start}" style="padding:6px 8px"><span class="avatar" style="width:28px;height:28px;font-size:11px">${initials(p.name)}</span><span style="min-width:0"><span class="iname">${esc(p.name)}</span><span class="isub">${esc(p.lodges.filter(x=>x.n&&!x.pending).map(x=>lname(byNum(x.n))).slice(0,2).join(", ")||"Texas Mason")}</span></span><span></span></button>`).join("")}</div>`:(mq.q.length>1?`<span class="hint">No brother on the site matches "${esc(mq.q)}" yet.</span>`:"")}
-function mentionPick(ta,id,start){const p=S.profiles[id];if(!p)return;const end=ta.selectionStart||ta.value.length;ta.value=ta.value.slice(0,start)+"@"+p.name+" "+ta.value.slice(end);DRAFT.tags[id]=p.name;const c=start+p.name.length+2;ta.focus();ta.setSelectionRange(c,c);const box=document.getElementById("post-mention");if(box)box.innerHTML="";const tl=document.getElementById("post-tagged");if(tl)tl.innerHTML=taggedLine()}
-function tagsIn(text,tags){return Object.keys(tags||{}).filter(id=>S.profiles[id]&&text.includes("@"+S.profiles[id].name))}
-const taggedLine=()=>{const ids=Object.keys(DRAFT.tags).filter(id=>S.profiles[id]);return ids.length?`<span class="hint">Tagging: ${ids.map(id=>esc(S.profiles[id].name)).join(", ")}. They will see this post even if they do not follow this board.</span>`:""};
-function renderMentions(html,p){pTags(p).forEach(id=>{const q=S.profiles[id];if(!q)return;const k="@"+esc(q.name);html=html.split(k).join(`<button type="button" class="linkbtn" data-person="${id}" style="font-weight:600">@${esc(q.name)}</button>`)});return html}
+  const hits=mentionMatches(mq.q);box.innerHTML=hits.length?`<div class="panel" style="padding:4px;display:grid">${hits.map(([id,p])=>`<button type="button" class="item" data-mention="${id}" data-mstart="${mq.start}" style="padding:6px 8px"><span class="avatar" style="width:28px;height:28px;font-size:11px">${initials(p.name)}</span><span style="min-width:0"><span class="iname">${esc(dispName(p))}</span><span class="isub">${p.nick?esc(p.name)+" · ":""}${esc(p.lodges.filter(x=>x.n&&!x.pending).map(x=>lname(byNum(x.n))).slice(0,2).join(", ")||"Texas Mason")}</span></span><span></span></button>`).join("")}</div>`:(mq.q.length>1?`<span class="hint">No brother on the site matches "${esc(mq.q)}" yet.</span>`:"")}
+function mentionPick(ta,id,start){const p=S.profiles[id];if(!p)return;const end=ta.selectionStart||ta.value.length;const dn=dispName(p);ta.value=ta.value.slice(0,start)+"@"+dn+" "+ta.value.slice(end);DRAFT.tags[id]=dn;const c=start+dn.length+2;ta.focus();ta.setSelectionRange(c,c);const box=document.getElementById("post-mention");if(box)box.innerHTML="";const tl=document.getElementById("post-tagged");if(tl)tl.innerHTML=taggedLine()}
+function tagsIn(text,tags){return Object.keys(tags||{}).filter(id=>S.profiles[id]&&(text.includes("@"+dispName(S.profiles[id]))||text.includes("@"+S.profiles[id].name)))}
+const taggedLine=()=>{const ids=Object.keys(DRAFT.tags).filter(id=>S.profiles[id]);return ids.length?`<span class="hint">Tagging: ${ids.map(id=>esc(dispName(S.profiles[id]))).join(", ")}. They will see this post even if they do not follow this board.</span>`:""};
+function renderMentions(html,p){pTags(p).forEach(id=>{const q=S.profiles[id];if(!q)return;[dispName(q),q.name].filter((x,i,a)=>x&&a.indexOf(x)===i).forEach(nm=>{const k="@"+esc(nm);html=html.split(k).join(`<button type="button" class="linkbtn" data-person="${id}" style="font-weight:600">@${esc(dispName(q))}</button>`)})});return html}
 const fsize=n=>n>1048576?(n/1048576).toFixed(1)+" MB":Math.max(1,Math.round(n/1024))+" KB";
 const linkify=s=>esc(s).replace(/https?:\/\/[^\s<]*[^\s<.,;:!?)]/g,u=>`<a href="#" data-ext="${u}">${u}</a>`);
 function attachHtml(){
@@ -2516,7 +2517,7 @@ function feedView(){
     <div><h2 class="title" style="margin:0 0 6px">${atG?esc(atG.name)+" Trestle Board":atD?"District "+esc(atD)+" Trestle Board":atB?esc(atB.name)+" Trestle Board":atL?esc(lname(atL))+" Trestle Board":"My Trestle Board"}</h2>
       <p class="hint" style="margin:0">${atG?`Posts to this Trestle Board go to its people and show on their own main Trestle Board. <button class="linkbtn" type="button" data-act="group-open" data-id="${esc(atG.id)}">About this Trestle Board</button> · <button class="linkbtn" type="button" data-act="feed-all">Show all my boards</button>`:atD?`Posts to District ${esc(atD)}, seen by every lodge in the district. <button class="linkbtn" type="button" data-act="feed-all">Show all my boards</button>`:atB?`Posts to this ${atB.lvl==="orient"?"Scottish Rite board":atB.lvl==="valley"?"Valley":atB.lvl==="body"?"body, its Valley":"body, seen by its members and followers"}. <button class="linkbtn" type="button" data-act="feed-all">Show all my boards</button>`:atL?`Posts to this ${atL.gl?"board":"lodge, District "+esc(atL.d)+","} and the Grand Lodge. <button class="linkbtn" type="button" data-act="feed-all">Show all my boards</button>`:"Posts from your lodges, the lodges you follow, your district, and the Grand Lodge."}</p></div>
     ${can_.length?`<form class="panel pad" id="postform" style="display:grid;gap:10px">
-      <div style="display:flex;gap:10px;align-items:flex-start"><span class="avatar">${pr?initials(pr.name):"SA"}</span>
+      <div style="display:flex;gap:10px;align-items:flex-start"><span class="avatar">${pr?initials(dispName(pr)):"SA"}</span>
         <textarea id="post-text" rows="3" style="flex:1" placeholder="Share something with the brethren... type @ to tag a brother" aria-label="Post text"></textarea></div>
       <div id="post-mention"></div><div id="post-tagged">${taggedLine()}</div>
       <div id="post-attach" style="display:grid;gap:8px">${attachHtml()}</div>
@@ -2941,7 +2942,7 @@ document.addEventListener("submit",e=>{
   if(f.id==="acctform"){if(saveAcct()){logIt("updated their account and privacy settings");toast("Saved");render()}return}
   if(f.id==="contactform"){
     const p=editTarget(); if(!p) return;
-    const nm=v("c-name"); if(nm) p.name=nm;
+    const nm=v("c-name"); if(nm) p.name=nm; if(document.getElementById("c-nick")) p.nick=v("c-nick");
     readContact(p,"c",id=>v(id));ct(p,"photo").vis=segVal("pv-photo");
     logIt(me().profile===S.prof?"updated their profile":`updated ${p.name}'s profile as Super Admin`); toast("Profile saved"); render(); return;
   }
