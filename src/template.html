@@ -1181,6 +1181,7 @@ function render(){
   if(RESET){document.getElementById("tabs").innerHTML="";v.innerHTML=newPasswordView();tlHeader();return}
   if(!signedIn()){document.getElementById("tabs").innerHTML=pubNav(UI.login?"portal":PUB.sel?(PUB.selT==="l"?"lodges":"bodies"):PUB.tab);v.innerHTML=UI.login?loginView():publicView();tlHeader();save();return}
   if(needsVerify()){document.getElementById("tabs").innerHTML="";v.innerHTML=verifyView();tlHeader();save();return}
+  if(needsSetup()){document.getElementById("tabs").innerHTML="";v.innerHTML=setupView();tlHeader();save();return}
   tabs();
   v.innerHTML=({feed:feedView,dir:dirView,bodies:bodiesView,cal:calView,members:membersView,res:resView,admin:adminView,account:accountView,profile:profileView,messages:messagesView,card:cardView,drills:drillsView,monitor:monitorView,laws:lawsView,bylaws:bylawsView,mentor:mentorView})[S.tab]();
   if(S.tab==="messages") renderAcct();
@@ -2071,6 +2072,7 @@ function accountView(){
   <div class="panel pad"><h3 class="sub">Account</h3>
     ${CLOUD?`<div class="acct-row" style="margin:0"><div><b>Grand Lodge card</b><div class="hint" style="margin:0">${CL.ver?`Verified ${esc(CL.ver.as_of||"")}${CL.ver.office?" · "+esc(CL.ver.office):""}. Re-check to refresh your lodges and standing.`:"Not verified yet."}</div></div><button class="btn ghost small" type="button" data-act="recheck-card">${CL.ver?"Re-check my card":"Verify my card"}</button></div>
     <div id="recheck-box" style="display:none;margin:10px 0 0">${verifyInner()}</div>
+    <div class="acct-row" style="margin:10px 0 0"><div><b>Setup and tour</b><div class="hint" style="margin:0">Run the first-time setup again: what your card found, your bodies and profile name, and the quick tour.</div></div><button class="btn ghost small" type="button" data-act="setup-again">Take the tour again</button></div>
     <div class="acct-row" style="margin:12px 0 0"><div><b>Data loaded</b><div class="hint" style="margin:0">Officer lists for ${Object.keys(OFFPRE).length} lodges${REF.err?" · "+esc(REF.err):""} · Monitor ${REF.mon?"yes":"no"} · Drills ${REF.drills?"yes":"no"} · Law book ${REF.laws?"yes":"not opened yet"} · Role ${esc(CL.role)}</div></div><button class="btn ghost small" type="button" data-act="reload-data">Reload</button></div>`:`<div class="acct-row" style="margin:0"><div><b>Login</b><div class="hint" style="margin:0">Password and sign-in options arrive with real accounts. This demo signs you in as a sample user.</div></div><button class="btn ghost small" type="button" disabled>Change password</button></div>`}
     <div class="acct-row" style="margin:12px 0 0"><div><b>Notifications</b><div class="hint" style="margin:0">Choose which Trestle Board posts and events email you.</div></div><span class="chip">Planned</span></div>
     <div class="acct-row" style="margin:12px 0 0"><div><b>Dues</b><div class="hint" style="margin:0">Pay dues online.</div></div><span class="chip">Planned</span></div>
@@ -2696,6 +2698,13 @@ document.addEventListener("click",e=>{
     case "install-app":UI.menu=false;render();if(window.tbShowInstall)tbShowInstall();break;
     case "signout":if(CLOUD)cloudSignOut();S.user="public";S.tab="feed";UI={editing:false,editProfile:false,adding:null,confirmDel:null};render();scrollTo(0,0);toast("Signed out");break;
     case "welcome-ok":{S.welcomed=S.welcomed||{};S.welcomed[S.user]=1;render();break}
+    case "setup-next":UI.setupStep=setupStep()+1;render();scrollTo(0,0);break;
+    case "setup-save":setupSaveStep2();UI.setupStep=3;render();scrollTo(0,0);break;
+    case "setup-skip":if(setupStep()>=SETUP_STEPS)setupFinish();else{UI.setupStep=setupStep()+1;render();scrollTo(0,0)}break;
+    case "setup-done":setupFinish();break;
+    case "tour-prev":UI.tour=Math.max(0,(UI.tour||0)-1);render();break;
+    case "tour-next":UI.tour=Math.min(TOUR.length-1,(UI.tour||0)+1);render();break;
+    case "setup-again":{const p=myProfile();if(p){p.setupDone=false;UI.setupStep=1;UI.tour=0;render();scrollTo(0,0)}break}
     case "signin":{S.user="mark";S.tab="feed";UI={editing:false,editProfile:false,adding:null,confirmDel:null};const ml=myLodges().filter(n=>n!==0);if(ml.length)S.sel=ml[0];if(me().profile)S.prof=me().profile;render();scrollTo(0,0);toast("Signed in as Mark (demo)");break}
     case "logo-remove":setLogo(t.dataset.lk,t.dataset.lid,"");break;
     case "photo-remove":{const p=editTarget();if(!p)break;stashProfileForm(p);ct(p,"photo").v="";logIt("removed their profile picture");render();break}
@@ -3027,6 +3036,9 @@ document.addEventListener("change",e=>{
   if(t.classList&&t.classList.contains("logo-file")){const f=t.files&&t.files[0],lk=t.dataset.lk,lid=t.dataset.lid;t.value="";if(!f)return;
     cropImage(f,{shape:"square",out:320,fit:"contain",png:true,title:"Adjust the logo"}).then(d=>{if(d)setLogo(lk,lid,d)});return}
   if(t.id==="member-file"){const fs=[...(t.files||[])];const n=document.getElementById("member-file-note");const note=n?n.value.trim():"";if(fs.length)uploadMemberFiles(fs,note);return}
+  if(t.id==="setup-photo"){const f=t.files&&t.files[0];if(!f)return;const img=new Image(),url=URL.createObjectURL(f);
+    img.onload=()=>{const c=document.createElement("canvas"),s=Math.min(img.width,img.height),N=160;c.width=c.height=N;c.getContext("2d").drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,N,N);URL.revokeObjectURL(url);const p=myProfile();if(!p)return;const nk=document.getElementById("setup-nick");if(nk)p.nick=(nk.value||"").trim();ct(p,"photo").v=c.toDataURL("image/jpeg",.82);render();toast("Photo added.")};
+    img.onerror=()=>{URL.revokeObjectURL(url);toast("That file isn't an image I can read")};img.src=url;return}
   if(t.id==="photo-file"){const f=t.files&&t.files[0];t.value="";if(!f)return;
     cropImage(f,{shape:"circle",out:240,fit:"cover",title:"Adjust your photo"}).then(d=>{if(!d)return;const p=editTarget();if(!p)return;stashProfileForm(p);ct(p,"photo").v=d;logIt("updated their profile picture");render();toast("Photo updated.")});return}
   if(t.id==="cal-add"){if(t.value){const cur=[...calKeys()];if(!cur.includes(t.value))cur.push(t.value);S.calBodies=cur;S.calDay=null}render();return}
@@ -3128,6 +3140,42 @@ const degFromCard=d=>/master/i.test(d)?"MM":/fellow/i.test(d)?"FC":/entered/i.te
 function applyVerification(){const v=CL.ver,p=myProfile();if(!v||!p)return;
   const lod=Array.isArray(v.lodges)?v.lodges:[];if(v.name)p.name=v.name;p.degree=degFromCard(v.degree||"");p.verified={asOf:v.as_of||"",at:v.verified_at||""};if(v.office){p.cardOffice=v.office;const parts=String(v.office).split(/;\s*/);parts.forEach(o=>{const m=o.match(/^(?:[A-Z]{1,6}\s*-\s*)?(.*?)\s*-\s*(District\s+\S+)\s*$/i);if(!m)return;const title=m[1].trim(),body=m[2].replace(/\s+/g," ").trim();p.current=p.current||[];if(!p.current.some(c=>c.title===title&&c.body===body))p.current.push({title,body,year:"",fromCard:true})})}
   lod.forEach(x=>{const l=byNum(+x.no);if(!l)return;const ex=p.lodges.find(y=>y.n===l.n);if(!ex)p.lodges.push({n:l.n,since:"",approvedBy:"verified card",approvedAt:v.verified_at||""});else if(ex.pending){delete ex.pending;ex.approvedBy="verified card"}})}
+/* ---------- first-time setup after the card scan ---------- */
+const SETUP_STEPS=3;
+const needsSetup=()=>{if(!CLOUD||!signedIn())return false;const p=myProfile();return !!(p&&!p.setupDone&&(CL.ver||CL.role==="super"))};
+const setupStep=()=>Math.min(SETUP_STEPS,Math.max(1,UI.setupStep||1));
+function setupDots(n){return `<div style="display:flex;gap:6px;justify-content:center;margin:0 0 14px">${[1,2,3].map(i=>`<span style="width:${i===n?22:8}px;height:8px;border-radius:4px;background:${i===n?"var(--accent)":"var(--line)"};transition:width .2s"></span>`).join("")}</div>`}
+function setupView(){const p=myProfile(),n=setupStep();if(!p)return "";
+  const nav=(next,skipLabel)=>`<div class="actions" style="justify-content:space-between;margin-top:18px;flex-wrap:wrap;gap:8px"><button class="linkbtn" type="button" data-act="setup-skip">${skipLabel||"Skip for now"}</button><button class="btn" type="button" data-act="${next}">${n===SETUP_STEPS?"Take me to my Trestle Board":"Next"}</button></div>`;
+  if(n===1){const v=CL.ver||{},lo=p.lodges.filter(x=>x.n&&!x.pending).map(x=>byNum(x.n)).filter(Boolean);
+    return `<div class="panel login" style="max-width:520px;text-align:left">${setupDots(1)}<div class="eyebrow">Welcome, Brother</div><h2 style="text-align:left">${esc(p.name.split(" ")[0])}, you are in.</h2><p class="sub" style="text-align:left">Here is what your Grand Lodge card told us. Nothing else to type.</p>
+      <dl class="facts"><dt>Name</dt><dd>${esc(p.name)}</dd><dt>Degree</dt><dd>${esc(v.degree||DTITLE[degP(p)]||"Master Mason")}</dd>${v.good!==undefined?`<dt>Standing</dt><dd>${v.good?"In good standing":"Check with your Secretary"}${v.as_of?` <span class="isub">as of ${esc(v.as_of)}</span>`:""}</dd>`:""}${v.office?`<dt>Office</dt><dd>${esc(v.office)}</dd>`:""}<dt>${lo.length===1?"Lodge":"Lodges"}</dt><dd>${lo.length?lo.map(l=>esc(lname(l))).join("<br>"):"None linked yet"}</dd></dl>
+      <h3 class="sub" style="margin:18px 0 8px">What this does for you</h3>
+      <div class="stack" style="gap:10px;padding:0">
+        <div class="card" style="display:flex;gap:12px;align-items:flex-start"><span style="font-size:24px">📅</span><span><b>One calendar.</b><br><span class="isub">Every stated meeting, degree and dinner from your ${lo.length>1?"lodges":"lodge"}, your district and the Grand Lodge, in one place.</span></span></div>
+        <div class="card" style="display:flex;gap:12px;align-items:flex-start"><span style="font-size:24px">📋</span><span><b>One Trestle Board.</b><br><span class="isub">Posts from your ${lo.length>1?"lodges":"lodge"} and the bodies you belong to, instead of six group texts and a Facebook page.</span></span></div>
+        <div class="card" style="display:flex;gap:12px;align-items:flex-start"><span style="font-size:24px">🏛️</span><span><b>Every Texas lodge.</b><br><span class="isub">Officers, meeting times and directions for all 712 lodges, and a way to find a brother by name.</span></span></div>
+      </div>${nav("setup-next")}</div>`}
+  if(n===2){const ph=ct(p,"photo");const have=new Set((p.ents||[]).map(x=>x.id));
+    const grp=(label,list,pick)=>list.length?`<details ${pick.some(b=>have.has(b.id))?"open":""} style="margin:0 0 8px"><summary style="cursor:pointer;font-weight:600;padding:6px 0">${label} <span class="isub">${pick.filter(b=>have.has(b.id)).length?pick.filter(b=>have.has(b.id)).length+" picked":""}</span></summary><div style="display:grid;gap:4px;max-height:220px;overflow:auto;padding:4px 0 4px 4px">${pick.map(b=>`<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" class="setup-body" value="${esc(b.id)}" ${have.has(b.id)?"checked":""}><span>${esc(bodyTitle(b))}${b.city&&b.lvl!=="valley"?` <span class="isub">${esc(b.city)}</span>`:""}</span></label>`).join("")}</div></details>`:"";
+    const sr=BODIES.filter(b=>b.id.startsWith("sr-")),sh=BODIES.filter(b=>b.id.startsWith("sh-")),yc=BODIES.filter(b=>b.id.startsWith("yc-")),yo=BODIES.filter(b=>b.id.startsWith("yo-")),yk=BODIES.filter(b=>b.id.startsWith("yk-"));
+    return `<div class="panel login" style="max-width:520px;text-align:left">${setupDots(2)}<div class="eyebrow">Step 2 of 3</div><h2 style="text-align:left">Tell us the rest.</h2><p class="sub" style="text-align:left">Your card only knows blue lodge. These are optional and you can change them any time from your profile.</p>
+      <form id="setupform" style="display:grid;gap:14px">
+        <label style="display:grid;gap:4px"><b>Profile name</b><span class="isub">What you go by. Posts and events show this instead of your full name.</span><input type="text" id="setup-nick" value="${esc(p.nick||"")}" placeholder="e.g. Buck" maxlength="40"></label>
+        <div style="display:flex;gap:12px;align-items:center"><span class="avatar big" ${ph.v?`style="background-image:url('${ph.v}')" class="avatar photo big"`:""}>${ph.v?"":initials(dispName(p))}</span><label class="btn ghost small" style="cursor:pointer">${ph.v?"Change photo":"Add a photo"}<input type="file" id="setup-photo" accept="image/*" hidden></label></div>
+        <div><b>Appendant bodies you belong to</b><p class="isub" style="margin:2px 0 8px">Tick what applies. Each body's officers confirm new members; the first member of a body on the site is approved automatically.</p>
+        ${grp("Scottish Rite",sr,sr)}${grp("Shrine",sh,sh)}${grp("York Rite: Royal Arch Chapters",yc,yc)}${grp("York Rite: Councils",yo,yo)}${grp("York Rite: Commanderies",yk,yk)}</div>
+      </form>${nav("setup-save","Skip, I'll do it later")}</div>`}
+  return `<div class="panel login" style="max-width:520px;text-align:left">${setupDots(3)}<div class="eyebrow">Step 3 of 3</div><h2 style="text-align:left">A quick look around.</h2>${tourCards()}${nav("setup-done","Skip the tour")}</div>`}
+const TOUR=[["My Trestle Board","Your feed. Posts from your lodges, your district and the Grand Lodge. Tag a brother with @ and he sees it too.","tour-feed.jpg","📋"],["Calendar","Every event from every lodge and body you belong to or follow. Tap a day to see what is on.","tour-cal.jpg","📅"],["Lodges","All 712 Texas lodges with officers, meeting night and a map. Follow a lodge to get its posts and events.","tour-lodge.jpg","🏛️"],["Your profile","Your record, bodies, photo and the files you choose to share. Your initials, top right, get you here.","tour-profile.jpg","👤"]];
+function tourCards(){const i=Math.min(TOUR.length-1,UI.tour||0),[t,txt,img,em]=TOUR[i];
+  return `<div class="card" style="display:grid;gap:10px;padding:14px"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:17px">${em} ${esc(t)}</b><span class="isub">${i+1} of ${TOUR.length}</span></div><img src="img/${img}" alt="${esc(t)} screen" style="width:100%;max-height:360px;object-fit:cover;object-position:top;border:1px solid var(--line);border-radius:10px;background:var(--panel)" onerror="this.style.display='none'"><p style="margin:0">${esc(txt)}</p><div class="actions" style="margin:0;justify-content:space-between"><button class="btn ghost small" type="button" data-act="tour-prev" ${i===0?"disabled":""}>Back</button><button class="btn ghost small" type="button" data-act="tour-next" ${i===TOUR.length-1?"disabled":""}>Next card</button></div></div>`}
+function setupFinish(){const p=myProfile();if(p)p.setupDone=true;S.welcomed=S.welcomed||{};S.welcomed[S.user]=1;UI.setupStep=1;UI.tour=0;S.tab="feed";render();scrollTo(0,0);toast("Welcome to My Trestle Board.")}
+function setupSaveStep2(){const p=myProfile();if(!p)return;const nk=document.getElementById("setup-nick");if(nk)p.nick=(nk.value||"").trim();
+  const picked=[...document.querySelectorAll(".setup-body:checked")].map(x=>x.value),now=new Date().toISOString();let added=0;
+  picked.forEach(id=>{const b=entById(id);if(!b||entMem(p,id))return;(p.ents||(p.ents=[])).push({id,since:"",pending:true,requested:now});added++;const a=(S.bodyFollows||(S.bodyFollows={}))[S.user]||(S.bodyFollows[S.user]=[]);if(!a.includes(id))a.push(id)});
+  if(added){settleFirstClaims();logIt(`added ${added} appendant ${added===1?"body":"bodies"} during setup`)}
+  if(p.nick)logIt("set a profile name")}
 function verifyInner(){return `
   <div id="scanbox" style="display:grid;gap:8px;margin:0 0 12px"><button class="btn" type="button" data-act="scan-card">Scan my card with the camera</button><video id="scanvid" playsinline muted style="display:none;width:100%;border-radius:10px;background:#000"></video><button class="btn ghost" type="button" id="scanstop" data-act="scan-stop" style="display:none">Cancel scan</button></div>
   <p class="hint" style="margin:0 0 8px">Or scan the QR on your card with your phone's camera app, copy the web address of the page that opens, and paste it below.</p>
