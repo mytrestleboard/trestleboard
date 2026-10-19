@@ -2264,7 +2264,7 @@ function boardsICanPost(){
 function myWorld(){const s=new Set(myLodges());(S.follows[S.user]||[]).forEach(n=>s.add(n));return [...s].map(byNum).filter(Boolean)}
 function canSeePost(p){
   if(!signedIn()) return false;
-  if(p.by===S.user) return true;
+  if(p.by===S.user||taggedMe(p)) return true;
   if(p.evId){const e=S.events.find(x=>x.id===p.evId);if(e&&e.vis==="members"){if(e.k){if(!evMemberOf(e.k))return false}else{const l=byNum(e.n);if(!l||!canSeePrivate(l)) return false}}}
   return pBoards(p).some(b=>canSeeOn(b))}
 function canSeeOn(board){const p={board};
@@ -2318,7 +2318,7 @@ function postCard(p){
       <div style="min-width:0;flex:1"><b>${esc(w.name)}</b> <span class="isub">${p.evId?"added an event · ":"· "}${ago(p.at)}</span><br>
       <span class="chip ${p.board.t==="gl"?"acc":p.board.t==="district"?"pilot":"mem"}">${esc(bName(p.board))}</span>${pAlso(p).map(k=>`<span class="chip">${esc(bName(bFromKey(k)))}</span>`).join(" ")} <span class="isub">${pAlso(p).length?"":esc(bReach(p.board))}</span></div>
       ${mine&&!p.evId&&UI.editPost!==p.id?`<button class="xbtn" type="button" data-act="post-edit" data-id="${p.id}">Edit</button>`:""}${canDel?`<button class="xbtn" type="button" data-act="del-post" data-id="${p.id}">Delete</button>`:""}</div>
-    ${p.evId?evCard(p):UI.editPost===p.id?`<form data-editpost="${p.id}" style="display:grid;gap:8px"><textarea name="t" rows="4" aria-label="Edit your post">${esc(p.text)}</textarea><div class="actions" style="margin:0"><button class="btn small" type="submit">Save</button><button class="btn ghost small" type="button" data-act="post-edit-cancel">Cancel</button></div></form>${postExtras(p)}`:`<div style="white-space:pre-wrap;overflow-wrap:anywhere">${linkify(p.text)}</div>${p.edited?`<span class="isub">Edited ${esc(ago(p.edited))}</span>`:""}${postExtras(p)}`}
+    ${p.evId?evCard(p):UI.editPost===p.id?`<form data-editpost="${p.id}" style="display:grid;gap:8px"><textarea name="t" rows="4" aria-label="Edit your post">${esc(p.text)}</textarea><div class="actions" style="margin:0"><button class="btn small" type="submit">Save</button><button class="btn ghost small" type="button" data-act="post-edit-cancel">Cancel</button></div></form>${postExtras(p)}`:`<div style="white-space:pre-wrap;overflow-wrap:anywhere">${renderMentions(linkify(p.text),p)}</div>${p.edited?`<span class="isub">Edited ${esc(ago(p.edited))}</span>`:""}${postExtras(p)}`}
     ${postShareActs(p)}
     <div class="rxrow">${rxBar(p,p.id)}<button type="button" class="rx ${open?"on":""}" data-act="cm-toggle" data-post="${p.id}" aria-expanded="${open}">💬 ${cms.length?`${cms.length} ${cms.length===1?"comment":"comments"}`:"Comment"}</button></div>
     ${open?`<div class="cmlist">${cms.map(c=>commentHtml(p,c)).join("")}
@@ -2346,7 +2346,18 @@ function feedBar(){
     ${open?order.filter(g=>grp[g]).map(g=>`<div style="display:grid;gap:6px"><span class="eyebrow" style="margin:0">${esc(g)}</span><div style="display:flex;flex-wrap:wrap;gap:6px">${grp[g].map(k=>{const a=on.includes(k);return `<button type="button" class="btn small ${a?"":"ghost"}" data-act="feed-toggle" data-key="${esc(k)}" aria-pressed="${a}">${esc(bodyLabel(k))}</button>`}).join("")}</div></div>`).join(""):""}
     ${myGroups().length?`<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><span class="hint" style="margin:0">Open a committee Trestle Board:</span>${myGroups().map(g=>`<button type="button" class="linkbtn" data-act="group-open" data-id="${esc(g.id)}">${esc(g.name)}</button>`).join(" · ")}</div>`:""}</div>`;
 }
-const DRAFT={pics:[],files:[],poll:null};
+const DRAFT={pics:[],files:[],poll:null,tags:{}};
+/* ---------- @mentions: tag a brother in a post ---------- */
+const pTags=p=>Array.isArray(p.tags)?p.tags:[];
+const taggedMe=p=>!!(me().profile&&pTags(p).includes(me().profile));
+function mentionQuery(ta){const v=ta.value.slice(0,ta.selectionStart||0);const m=v.match(/(^|\s)@([^@\n]{0,40})$/);return m?{q:m[2],start:v.length-m[2].length-1}:null}
+function mentionMatches(q){const n=normName(q);if(!n&&q!=="")return [];const seen=new Set();return Object.entries(S.profiles).filter(([id,p])=>p&&p.name&&!p.sample&&(!CLOUD||LIVE_PID.test(id))&&id!==me().profile&&normName(p.name).includes(n)).slice(0,6)}
+function mentionBox(ta){const box=document.getElementById("post-mention");if(!box)return;const mq=mentionQuery(ta);if(!mq){box.innerHTML="";return}
+  const hits=mentionMatches(mq.q);box.innerHTML=hits.length?`<div class="panel" style="padding:4px;display:grid">${hits.map(([id,p])=>`<button type="button" class="item" data-mention="${id}" data-mstart="${mq.start}" style="padding:6px 8px"><span class="avatar" style="width:28px;height:28px;font-size:11px">${initials(p.name)}</span><span style="min-width:0"><span class="iname">${esc(p.name)}</span><span class="isub">${esc(p.lodges.filter(x=>x.n&&!x.pending).map(x=>lname(byNum(x.n))).slice(0,2).join(", ")||"Texas Mason")}</span></span><span></span></button>`).join("")}</div>`:(mq.q.length>1?`<span class="hint">No brother on the site matches "${esc(mq.q)}" yet.</span>`:"")}
+function mentionPick(ta,id,start){const p=S.profiles[id];if(!p)return;const end=ta.selectionStart||ta.value.length;ta.value=ta.value.slice(0,start)+"@"+p.name+" "+ta.value.slice(end);DRAFT.tags[id]=p.name;const c=start+p.name.length+2;ta.focus();ta.setSelectionRange(c,c);const box=document.getElementById("post-mention");if(box)box.innerHTML="";const tl=document.getElementById("post-tagged");if(tl)tl.innerHTML=taggedLine()}
+function tagsIn(text,tags){return Object.keys(tags||{}).filter(id=>S.profiles[id]&&text.includes("@"+S.profiles[id].name))}
+const taggedLine=()=>{const ids=Object.keys(DRAFT.tags).filter(id=>S.profiles[id]);return ids.length?`<span class="hint">Tagging: ${ids.map(id=>esc(S.profiles[id].name)).join(", ")}. They will see this post even if they do not follow this board.</span>`:""};
+function renderMentions(html,p){pTags(p).forEach(id=>{const q=S.profiles[id];if(!q)return;const k="@"+esc(q.name);html=html.split(k).join(`<button type="button" class="linkbtn" data-person="${id}" style="font-weight:600">@${esc(q.name)}</button>`)});return html}
 const fsize=n=>n>1048576?(n/1048576).toFixed(1)+" MB":Math.max(1,Math.round(n/1024))+" KB";
 const linkify=s=>esc(s).replace(/https?:\/\/[^\s<]*[^\s<.,;:!?)]/g,u=>`<a href="#" data-ext="${u}">${u}</a>`);
 function attachHtml(){
@@ -2496,7 +2507,7 @@ function feedView(){
   const atG=S.feedFilter.startsWith("ag:")?gById(S.feedFilter.slice(3)):null;
   if(S.feedFilter!=="all"&&!atL&&!atB&&!atD&&!atG) S.feedFilter="all";
   if(S.postToFor!==S.feedFilter){S.postToFor=S.feedFilter;const fk=atG?"g:"+atG.id:atL?(atL.n===0?"gl":"l:"+atL.n):atD?"d:"+atD:atB?entBoardKey(atB):"";if(fk&&can_.some(b=>bKey(b)===fk))S.postTo=fk}
-  const shown=atG?visible.filter(p=>pOn(p,"g:"+atG.id)):atD?visible.filter(p=>pOn(p,"d:"+atD)):atB?visible.filter(p=>postReachesEnt(p,atB)):atL?visible.filter(p=>postReachesLodge(p,atL)):S.feedBoards?visible.filter(p=>pBoards(p).some(b=>S.feedBoards.includes(bKey(b)))):visible;
+  const shown=atG?visible.filter(p=>pOn(p,"g:"+atG.id)):atD?visible.filter(p=>pOn(p,"d:"+atD)):atB?visible.filter(p=>postReachesEnt(p,atB)):atL?visible.filter(p=>postReachesLodge(p,atL)):S.feedBoards?visible.filter(p=>taggedMe(p)||pBoards(p).some(b=>S.feedBoards.includes(bKey(b)))):visible;
   const grp=(t,label)=>{const g=can_.filter(b=>b.t===t);return g.length?`<optgroup label="${label}">${g.map(b=>`<option value="${bKey(b)}" ${bKey(b)===S.postTo?"selected":""}>${esc(bName(b))}</option>`).join("")}</optgroup>`:""};
   return `<div class="stack" style="max-width:680px">
     ${feedTabs()}
@@ -2506,7 +2517,8 @@ function feedView(){
       <p class="hint" style="margin:0">${atG?`Posts to this Trestle Board go to its people and show on their own main Trestle Board. <button class="linkbtn" type="button" data-act="group-open" data-id="${esc(atG.id)}">About this Trestle Board</button> · <button class="linkbtn" type="button" data-act="feed-all">Show all my boards</button>`:atD?`Posts to District ${esc(atD)}, seen by every lodge in the district. <button class="linkbtn" type="button" data-act="feed-all">Show all my boards</button>`:atB?`Posts to this ${atB.lvl==="orient"?"Scottish Rite board":atB.lvl==="valley"?"Valley":atB.lvl==="body"?"body, its Valley":"body, seen by its members and followers"}. <button class="linkbtn" type="button" data-act="feed-all">Show all my boards</button>`:atL?`Posts to this ${atL.gl?"board":"lodge, District "+esc(atL.d)+","} and the Grand Lodge. <button class="linkbtn" type="button" data-act="feed-all">Show all my boards</button>`:"Posts from your lodges, the lodges you follow, your district, and the Grand Lodge."}</p></div>
     ${can_.length?`<form class="panel pad" id="postform" style="display:grid;gap:10px">
       <div style="display:flex;gap:10px;align-items:flex-start"><span class="avatar">${pr?initials(pr.name):"SA"}</span>
-        <textarea id="post-text" rows="3" style="flex:1" placeholder="Share something with the brethren..." aria-label="Post text"></textarea></div>
+        <textarea id="post-text" rows="3" style="flex:1" placeholder="Share something with the brethren... type @ to tag a brother" aria-label="Post text"></textarea></div>
+      <div id="post-mention"></div><div id="post-tagged">${taggedLine()}</div>
       <div id="post-attach" style="display:grid;gap:8px">${attachHtml()}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><label class="btn ghost small" style="cursor:pointer">📷 Photo<input type="file" id="post-photos" accept="image/*" multiple hidden></label><label class="btn ghost small" style="cursor:pointer">📎 File<input type="file" id="post-files" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" hidden></label><button class="btn ghost small" type="button" data-act="poll-on">📊 Poll</button></div>
       <div class="actions" style="margin:0;justify-content:space-between">
@@ -2594,6 +2606,7 @@ document.addEventListener("click",e=>{
     toast(w?(copied?"Opening in a new tab. If nothing opens, the link is copied: paste it into a new tab.":"Opening in a new tab."):(copied?"Your browser blocked the new tab. Link copied, paste it into a new tab.":"Your browser blocked the new tab."));return}
   if(UI.menu&&!e.target.closest("#acct")){UI.menu=false;renderAcct()}
   if(UI.navMenu&&!e.target.closest(".tabgrp")){UI.navMenu=null;tabs()}
+  {const mb=e.target.closest("[data-mention]");if(mb){const ta=document.getElementById("post-text");if(ta)mentionPick(ta,mb.dataset.mention,+mb.dataset.mstart);return}}
   const t=e.target.closest("[data-tab],[data-go],[data-lodge],[data-act],[data-lodge-open],[data-person],[data-day]"); if(!t) return;
   if(t.dataset.go){UI.navMenu=null;goTo(t.dataset.go);return}
   if(t.dataset.tab){S.tab=t.dataset.tab;if(S.tab==="feed")S.feedFilter="all";if(S.tab==="bodies")S.bodyOpen=false;if(S.tab==="members")S.personOpen=false;if(S.tab==="dir"){S.dirFind=false;S.dirOpen=false;S.distPage=null;S.dist="";S.q=""}UI={editing:false,editProfile:false,adding:null,confirmDel:null};render();return}
@@ -2970,6 +2983,7 @@ document.addEventListener("submit",e=>{
     const board=bFromKey(v("post-to")); if(!boardsICanPost().some(b=>bKey(b)===bKey(board))){toast("You can't post to that board");return}
     const np={id:"p"+Date.now().toString(36),by:S.user,board,text,at:new Date().toISOString()};
     if(DRAFT.pics.length)np.pics=DRAFT.pics;if(DRAFT.files.length)np.files=DRAFT.files;if(poll)np.poll=poll;
+    {const tg=tagsIn(text,DRAFT.tags);if(tg.length){np.tags=tg;tg.forEach(id=>logIt(`tagged ${S.profiles[id].name} in a post`))}DRAFT.tags={}}
     {const also=[...f.querySelectorAll(".post-also:checked")].map(x=>x.value).filter(k=>k!==bKey(board)&&boardsICanPost().some(b=>bKey(b)===k));if(also.length)np.also=also}
     {const wb=document.getElementById("post-web");if(wb&&wb.checked&&webOn(postScope(board))&&!poll){np.web=true}}
     DRAFT.pics=[];DRAFT.files=[];DRAFT.poll=null;S.posts.push(np);
@@ -3022,6 +3036,7 @@ document.addEventListener("change",e=>{
 document.addEventListener("input",e=>{const f=e.target.closest&&e.target.closest("form[data-add]");if(f&&(e.target.name==="b"||e.target.name==="a"))syncPos(f,e.target.name)});
 document.addEventListener("change",e=>{const f=e.target.closest&&e.target.closest("form[data-add]");if(f&&(e.target.name==="b"||e.target.name==="a"))syncPos(f,e.target.name)});
 document.addEventListener("input",e=>{
+  if(e.target.id==="post-text"){mentionBox(e.target);return}
   if(e.target.id==="bq"){S.bodyQ=e.target.value;const l=bodyFiltered();document.getElementById("blist").innerHTML=bodyListHtml(l);document.getElementById("bcount").textContent=bodyCount(l);save();return}
   if(e.target.id==="q"){S.q=e.target.value;const list=filtered();document.getElementById("list").innerHTML=listHtml(list);document.querySelector(".count").textContent=`${list.length} of ${L.filter(inGL).length} lodges`;save();}
   if(e.target.id==="msg-q"){S.msgQ=e.target.value;const pos=e.target.selectionStart;render();const i=document.getElementById("msg-q");i.focus();i.setSelectionRange(pos,pos);return}
